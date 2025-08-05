@@ -23,24 +23,17 @@ export default function MainLayout({
   const isPublicRoute = PUBLIC_ROUTES.includes(pathname);
 
   useEffect(() => {
-    // Don't do anything while auth state is loading
     if (loading) {
-      return;
+      return; // Do nothing while loading
     }
-
-    // If user is logged in and tries to access a public route, redirect to dashboard
-    if (user && isPublicRoute) {
-      router.push('/');
-    }
-
-    // If user is not logged in and tries to access a protected route, redirect to login
+    
+    // If user is not logged in and trying to access a protected route, redirect to login
     if (!user && !isPublicRoute) {
       router.push('/login');
     }
   }, [user, loading, router, isPublicRoute, pathname]);
   
-  // While authentication is in progress, show a global loader and nothing else.
-  // This is the key to preventing the render loop.
+  // 1. While authentication is in progress, show a global loader and nothing else.
   if (loading) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
@@ -49,12 +42,14 @@ export default function MainLayout({
     );
   }
 
-  // If we're on a public route and not logged in, render the public page (login/register).
-  if (!user && isPublicRoute) {
-    return <div className="min-h-screen w-full">{children}</div>;
+  // 2. If we are on a public route, render the page content.
+  // This allows unauthenticated users to see login/register,
+  // and authenticated users will be redirected away by their respective pages.
+  if (isPublicRoute) {
+    return <>{children}</>;
   }
-  
-  // If we have a user and are on a protected route, show the main application layout.
+
+  // 3. If we have a user and are on a protected route, show the main application layout.
   if (user && !isPublicRoute) {
     return (
       <SidebarProvider>
@@ -69,7 +64,7 @@ export default function MainLayout({
     );
   }
 
-  // In any other case (like waiting for redirect), show a loader.
+  // 4. In any other case (like an unauthenticated user on a protected route, waiting for redirect), show a loader.
   return (
     <div className="flex h-screen w-full items-center justify-center bg-background">
       <Loader2 className="h-8 w-8 animate-spin" />
