@@ -53,6 +53,8 @@ export default function RegisterPage() {
     },
   });
 
+  const selectedRole = form.watch("role");
+
   useEffect(() => {
     if (user) {
       router.push("/");
@@ -61,6 +63,10 @@ export default function RegisterPage() {
   
   const onSubmit = (values: z.infer<typeof formSchema>) => {
     registerWithEmailAndPassword(values.email, values.password, values.displayName, values.role);
+  }
+  
+  const handleGoogleSignUp = () => {
+    loginWithGoogle(selectedRole);
   }
 
   return (
@@ -78,6 +84,44 @@ export default function RegisterPage() {
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+               <FormField
+                control={form.control}
+                name="role"
+                render={({ field }) => (
+                  <FormItem className="space-y-3">
+                    <FormLabel>Register as a...</FormLabel>
+                    <FormControl>
+                      <RadioGroup
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                        className="grid grid-cols-2 gap-4"
+                      >
+                        <FormItem>
+                           <RadioGroupItem value="customer" id="customer" className="peer sr-only" />
+                            <Label
+                              htmlFor="customer"
+                              className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
+                            >
+                              <User className="mb-3 h-6 w-6" />
+                              Customer
+                            </Label>
+                        </FormItem>
+                        <FormItem>
+                           <RadioGroupItem value="barber" id="barber" className="peer sr-only" />
+                            <Label
+                              htmlFor="barber"
+                              className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
+                            >
+                              <Briefcase className="mb-3 h-6 w-6" />
+                              Barber
+                            </Label>
+                        </FormItem>
+                      </RadioGroup>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <FormField
                 control={form.control}
                 name="displayName"
@@ -117,44 +161,6 @@ export default function RegisterPage() {
                   </FormItem>
                 )}
               />
-               <FormField
-                control={form.control}
-                name="role"
-                render={({ field }) => (
-                  <FormItem className="space-y-3">
-                    <FormLabel>Register as a...</FormLabel>
-                    <FormControl>
-                      <RadioGroup
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                        className="grid grid-cols-2 gap-4"
-                      >
-                        <FormItem>
-                           <RadioGroupItem value="customer" id="customer" className="peer sr-only" />
-                            <Label
-                              htmlFor="customer"
-                              className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
-                            >
-                              <User className="mb-3 h-6 w-6" />
-                              Customer
-                            </Label>
-                        </FormItem>
-                        <FormItem>
-                           <RadioGroupItem value="barber" id="barber" className="peer sr-only" />
-                            <Label
-                              htmlFor="barber"
-                              className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
-                            >
-                              <Briefcase className="mb-3 h-6 w-6" />
-                              Barber
-                            </Label>
-                        </FormItem>
-                      </RadioGroup>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
               <Button type="submit" className="w-full" disabled={loading}>
                  {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                  Create Account
@@ -175,7 +181,7 @@ export default function RegisterPage() {
           
           <Button
             variant="outline"
-            onClick={() => loginWithGoogle()}
+            onClick={handleGoogleSignUp}
             disabled={loading}
             className="w-full"
           >
