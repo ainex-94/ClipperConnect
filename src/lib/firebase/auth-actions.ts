@@ -11,7 +11,6 @@ import { UserProfile } from './firestore';
 
 const app = !getApps().length
   ? initializeApp({
-      credential: undefined, // Let Firebase Admin SDK use application default credentials
       projectId: firebaseConfig.projectId,
     })
   : getApp();
