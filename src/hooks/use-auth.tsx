@@ -10,7 +10,7 @@ import {
 } from "react";
 import { onAuthStateChanged, signInWithPopup, signOut, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile, User as FirebaseUser } from "firebase/auth";
 import { auth, googleProvider, db } from "@/lib/firebase/firebase";
-import { doc, setDoc, getDoc, updateDoc } from "firebase/firestore";
+import { doc, setDoc, getDoc, updateDoc, onSnapshot } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import { useToast } from "./use-toast";
 import { type UserProfile } from "@/lib/firebase/firestore";
@@ -33,32 +33,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+    // This listener handles auth state changes (login/logout)
+    const unsubscribeAuthState = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
+        // User is logged in. Fetch their profile.
+        // We set loading to false after the first fetch inside the onSnapshot listener.
         const userRef = doc(db, "users", firebaseUser.uid);
-        const docSnap = await getDoc(userRef);
-        if (docSnap.exists()) {
-          setUser({ id: docSnap.id, ...docSnap.data() } as UserProfile);
-        } else {
-           await setDoc(userRef, {
-            uid: firebaseUser.uid,
-            email: firebaseUser.email,
-            displayName: firebaseUser.displayName,
-            photoURL: firebaseUser.photoURL || `https://placehold.co/100x100.png?text=${firebaseUser.displayName?.charAt(0)}`,
-            createdAt: new Date().toISOString(),
-            role: 'customer', 
-          });
-          const newUserDoc = await getDoc(userRef);
-          setUser({ id: newUserDoc.id, ...newUserDoc.data() } as UserProfile);
-        }
+        const unsubscribeFirestore = onSnapshot(userRef, (docSnap) => {
+            if (docSnap.exists()) {
+                setUser({ id: docSnap.id, ...docSnap.data() } as UserProfile);
+            } else {
+                // This case should ideally be handled during registration, but as a fallback:
+                createFirestoreUser(firebaseUser, 'customer', firebaseUser.displayName || 'New User');
+            }
+            // Set loading to false only once after we get the first user data snapshot
+            if (loading) {
+                setLoading(false);
+            }
+        });
+        return () => unsubscribeFirestore(); // Cleanup Firestore listener
       } else {
+        // User is logged out
         setUser(null);
+        setLoading(false);
       }
-      setLoading(false);
     });
 
-    return () => unsubscribe();
-  }, []);
+    return () => unsubscribeAuthState(); // Cleanup auth listener
+  }, []); // The empty dependency array ensures this effect runs only once on mount.
   
   const createFirestoreUser = async (firebaseUser: FirebaseUser, role: 'customer' | 'barber' | 'admin', displayName?: string) => {
       const userRef = doc(db, "users", firebaseUser.uid);
@@ -74,7 +76,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             role: role,
         };
         await setDoc(userRef, newUserProfile);
-        setUser({ id: firebaseUser.uid, ...newUserProfile });
          toast({
             title: "Registration Successful",
             description: "Welcome to ClipperConnect!",
@@ -84,9 +85,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
          // If user exists, just update their role if it's different.
         if (role && userProfile.role !== role) {
              await updateDoc(userRef, { role: role });
-             userProfile.role = role;
         }
-        setUser(userProfile);
         toast({
             title: "Login Successful",
             description: "Welcome back!",
@@ -98,7 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     try {
       const result = await signInWithPopup(auth, googleProvider);
-      await createFirestoreUser(result.user, role);
+      await createFirestoreUser(result.user, role, result.user.displayName || undefined);
     } catch (error: any) {
       console.error("Error during Google sign-in:", error);
       toast({
@@ -106,9 +105,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         title: "Sign-in Failed",
         description: error.message || "Could not sign you in with Google. Please try again.",
       });
-    } finally {
-        setLoading(false);
-    }
+      setLoading(false); // Ensure loading is false on error
+    } 
   };
   
   const registerWithEmailAndPassword = async (email: string, pass: string, displayName: string, role: 'customer'|'barber') => {
@@ -124,8 +122,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             title: "Registration Failed",
             description: error.message || "Could not register your account. Please try again.",
         });
-    } finally {
-        setLoading(false);
+        setLoading(false); // Ensure loading is false on error
     }
   }
   
@@ -133,7 +130,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     try {
         await signInWithEmailAndPassword(auth, email, pass);
-        // onAuthStateChanged will handle setting the user state
+        // onAuthStateChanged will handle setting the user state and loading state.
     } catch (error: any) {
          console.error("Error during Email/Password sign-in:", error);
         toast({
@@ -141,8 +138,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             title: "Sign-in Failed",
             description: error.message || "Could not sign you in. Please check your credentials.",
         });
-    } finally {
-        setLoading(false);
+        setLoading(false); // Ensure loading is false on error
     }
   }
 
@@ -151,7 +147,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     try {
       await signOut(auth);
-      setUser(null);
+      // onAuthStateChanged will handle setting user to null and loading to false
       router.push("/login"); 
       toast({
         title: "Logged Out",
@@ -164,8 +160,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         title: "Logout Failed",
         description: error.message || "Could not log you out. Please try again.",
       });
-    } finally {
-        setLoading(false);
+       setLoading(false); // Ensure loading is false on error
     }
   };
 
