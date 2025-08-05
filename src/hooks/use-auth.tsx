@@ -34,28 +34,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
 
   useEffect(() => {
-    const unsubscribeAuthState = onAuthStateChanged(auth, (firebaseUser) => {
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       if (firebaseUser) {
+        // User is signed in, set up a real-time listener for their profile
         const userRef = doc(db, 'users', firebaseUser.uid);
         const unsubscribeFirestore = onSnapshot(userRef, (docSnap) => {
           if (docSnap.exists()) {
             setUser({ id: docSnap.id, ...docSnap.data() } as UserProfile);
           } else {
-            // This case might happen if the user is authenticated but their Firestore doc is deleted.
-            // Or if registration process was interrupted.
+            // This case might happen if the user's Firestore doc is deleted.
             setUser(null); 
           }
-          // The loading state should only be turned off once, after the initial user data is fetched.
+          // We are done with the initial auth loading.
           setLoading(false);
         });
-        return () => unsubscribeFirestore();
+        return () => unsubscribeFirestore(); // Unsubscribe from Firestore when auth state changes
       } else {
+        // User is signed out
         setUser(null);
         setLoading(false);
       }
     });
 
-    return () => unsubscribeAuthState();
+    return () => unsubscribe(); // Unsubscribe from auth state changes on cleanup
   }, []);
   
   const createFirestoreUser = async (firebaseUser: FirebaseUser, role: 'customer' | 'barber' | 'admin', displayName?: string) => {

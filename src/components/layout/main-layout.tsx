@@ -23,23 +23,17 @@ export default function MainLayout({
   const isPublicRoute = PUBLIC_ROUTES.includes(pathname);
 
   useEffect(() => {
-    if (loading) {
-      return; // Do nothing while loading
-    }
-    
-    // If user is not logged in and trying to access a protected route, redirect to login
+    if (loading) return; // Wait until loading is finished
+
     if (!user && !isPublicRoute) {
       router.push('/login');
     }
-    
-    // If user is logged in and tries to access a public route (like login), redirect to home
+
     if (user && isPublicRoute) {
       router.push('/');
     }
-
   }, [user, loading, router, isPublicRoute, pathname]);
-  
-  // While authentication is in progress, show a global loader.
+
   if (loading) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
@@ -48,14 +42,8 @@ export default function MainLayout({
     );
   }
 
-  // If we are on a public route and not logged in yet, render the page.
-  if (!user && isPublicRoute) {
-    return <>{children}</>;
-  }
-
-  // If we have a user and are on a protected route, show the main application layout.
   if (user && !isPublicRoute) {
-    return (
+     return (
       <SidebarProvider>
         <div className="flex min-h-screen w-full">
           <AppSidebar />
@@ -68,7 +56,11 @@ export default function MainLayout({
     );
   }
 
-  // In any other case (like waiting for redirect to kick in), show a loader.
+  if (!user && isPublicRoute) {
+      return <>{children}</>;
+  }
+
+  // Fallback for transitional states, e.g. redirecting
   return (
     <div className="flex h-screen w-full items-center justify-center bg-background">
       <Loader2 className="h-8 w-8 animate-spin" />
