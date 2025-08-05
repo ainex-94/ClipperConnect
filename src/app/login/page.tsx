@@ -4,10 +4,21 @@
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { Scissors } from "lucide-react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { Scissors, Loader2 } from "lucide-react";
 import Link from "next/link";
+import { Separator } from "@/components/ui/separator";
+
+const formSchema = z.object({
+  email: z.string().email("Invalid email address."),
+  password: z.string().min(1, "Password is required."),
+});
 
 // Inline SVG for Google Icon
 const GoogleIcon = () => (
@@ -18,14 +29,26 @@ const GoogleIcon = () => (
 
 
 export default function LoginPage() {
-  const { user, loginWithGoogle, loading } = useAuth();
+  const { user, loginWithGoogle, loginWithEmailAndPassword, loading } = useAuth();
   const router = useRouter();
+
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      email: "",
+      password: "",
+    },
+  });
 
   useEffect(() => {
     if (user) {
       router.push("/");
     }
   }, [user, router]);
+  
+  const onSubmit = (values: z.infer<typeof formSchema>) => {
+    loginWithEmailAndPassword(values.email, values.password);
+  }
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-transparent">
@@ -38,22 +61,68 @@ export default function LoginPage() {
           <CardDescription>Sign in to manage your appointments.</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col gap-4">
-            <Button
-              onClick={() => loginWithGoogle()}
-              disabled={loading}
-              className="w-full"
-            >
-              <GoogleIcon />
-              {loading ? "Signing In..." : "Sign in with Google"}
-            </Button>
-            <p className="text-center text-sm text-muted-foreground">
-                Don't have an account?{' '}
-                <Link href="/register" className="font-semibold text-primary hover:underline">
-                    Sign up
-                </Link>
-            </p>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+               <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                      <Input placeholder="name@example.com" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+               <FormField
+                control={form.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Password</FormLabel>
+                    <FormControl>
+                      <Input type="password" placeholder="********" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Sign In
+              </Button>
+            </form>
+          </Form>
+
+          <div className="relative my-4">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-background px-2 text-muted-foreground">
+                Or continue with
+              </span>
+            </div>
           </div>
+          
+          <Button
+            variant="outline"
+            onClick={() => loginWithGoogle()}
+            disabled={loading}
+            className="w-full"
+          >
+            <GoogleIcon />
+            {loading ? "Signing In..." : "Sign in with Google"}
+          </Button>
+
+          <p className="mt-4 text-center text-sm text-muted-foreground">
+              Don't have an account?{' '}
+              <Link href="/register" className="font-semibold text-primary hover:underline">
+                  Sign up
+              </Link>
+          </p>
         </CardContent>
       </Card>
     </div>

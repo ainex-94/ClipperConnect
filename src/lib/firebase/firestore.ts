@@ -77,6 +77,10 @@ export async function getCollection(collectionName: string) {
     return querySnapshot.docs.map(doc => safeJsonParse({ id: doc.id, ...doc.data() }));
 }
 
+export async function getAllUsers() {
+    return getCollection("users");
+}
+
 export async function getUsersWithRole(role: 'customer' | 'barber') {
     const q = query(collection(db, "users"), where("role", "==", role));
     const querySnapshot = await getDocs(q);

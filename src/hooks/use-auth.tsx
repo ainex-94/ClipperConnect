@@ -8,7 +8,7 @@ import {
   useContext,
   ReactNode,
 } from "react";
-import { onAuthStateChanged, signInWithPopup, signOut, User as FirebaseUser } from "firebase/auth";
+import { onAuthStateChanged, signInWithPopup, signOut, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile, User as FirebaseUser } from "firebase/auth";
 import { auth, googleProvider, db } from "@/lib/firebase/firebase";
 import { doc, setDoc, getDoc, updateDoc } from "firebase/firestore";
 import { useRouter } from "next/navigation";
@@ -19,6 +19,8 @@ interface AuthContextType {
   user: UserProfile | null;
   loading: boolean;
   loginWithGoogle: (role?: 'customer' | 'barber') => void;
+  loginWithEmailAndPassword: (email: string, pass: string) => void;
+  registerWithEmailAndPassword: (email: string, pass: string, displayName: string, role: 'customer'|'barber') => void;
   logout: () => void;
 }
 
@@ -38,16 +40,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (docSnap.exists()) {
           setUser({ id: docSnap.id, ...docSnap.data() } as UserProfile);
         } else {
-          // This case might happen for users who existed before the user profile creation was robust.
-          // Or if Firestore document creation fails after auth success.
-          // We can create a default profile here.
            await setDoc(userRef, {
             uid: firebaseUser.uid,
             email: firebaseUser.email,
             displayName: firebaseUser.displayName,
-            photoURL: firebaseUser.photoURL,
+            photoURL: firebaseUser.photoURL || `https://placehold.co/100x100.png?text=${firebaseUser.displayName?.charAt(0)}`,
             createdAt: new Date().toISOString(),
-            role: 'customer', // Sensible default
+            role: 'customer', 
           });
           const newUserDoc = await getDoc(userRef);
           setUser({ id: newUserDoc.id, ...newUserDoc.data() } as UserProfile);
@@ -60,13 +59,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return () => unsubscribe();
   }, []);
-
-  const loginWithGoogle = async (role: 'customer' | 'barber' = 'customer') => {
-    setLoading(true);
-    try {
-      const result = await signInWithPopup(auth, googleProvider);
-      const firebaseUser = result.user;
-
+  
+  const createFirestoreUser = async (firebaseUser: FirebaseUser, role: 'customer' | 'barber' | 'admin', displayName?: string) => {
       const userRef = doc(db, "users", firebaseUser.uid);
       const docSnap = await getDoc(userRef);
 
@@ -74,19 +68,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const newUserProfile: Omit<UserProfile, 'id'> = {
             uid: firebaseUser.uid,
             email: firebaseUser.email!,
-            displayName: firebaseUser.displayName!,
-            photoURL: firebaseUser.photoURL!,
+            displayName: displayName || firebaseUser.displayName!,
+            photoURL: firebaseUser.photoURL || `https://placehold.co/100x100.png?text=${(displayName || firebaseUser.displayName)?.charAt(0)}`,
             createdAt: new Date().toISOString(),
             role: role,
         };
         await setDoc(userRef, newUserProfile);
-         setUser({ id: firebaseUser.uid, ...newUserProfile });
-        toast({
+        setUser({ id: firebaseUser.uid, ...newUserProfile });
+         toast({
             title: "Registration Successful",
             description: "Welcome to ClipperConnect!",
         });
       } else {
         const userProfile = { id: docSnap.id, ...docSnap.data() } as UserProfile;
+         // If user exists, just update their role if it's different.
         if (role && userProfile.role !== role) {
              await updateDoc(userRef, { role: role });
              userProfile.role = role;
@@ -97,35 +92,77 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             description: "Welcome back!",
         });
       }
-      // No automatic redirect, handled by MainLayout
-    } catch (error) {
+  }
+
+  const loginWithGoogle = async (role: 'customer' | 'barber' = 'customer') => {
+    setLoading(true);
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      await createFirestoreUser(result.user, role);
+    } catch (error: any) {
       console.error("Error during Google sign-in:", error);
       toast({
         variant: "destructive",
         title: "Sign-in Failed",
-        description: "Could not sign you in with Google. Please try again.",
+        description: error.message || "Could not sign you in with Google. Please try again.",
       });
     } finally {
         setLoading(false);
     }
   };
+  
+  const registerWithEmailAndPassword = async (email: string, pass: string, displayName: string, role: 'customer'|'barber') => {
+    setLoading(true);
+    try {
+        const result = await createUserWithEmailAndPassword(auth, email, pass);
+        await updateProfile(result.user, { displayName });
+        await createFirestoreUser(result.user, role, displayName);
+    } catch (error: any) {
+        console.error("Error during Email/Password registration:", error);
+        toast({
+            variant: "destructive",
+            title: "Registration Failed",
+            description: error.message || "Could not register your account. Please try again.",
+        });
+    } finally {
+        setLoading(false);
+    }
+  }
+  
+  const loginWithEmailAndPassword = async (email: string, pass: string) => {
+    setLoading(true);
+    try {
+        await signInWithEmailAndPassword(auth, email, pass);
+        // onAuthStateChanged will handle setting the user state
+    } catch (error: any) {
+         console.error("Error during Email/Password sign-in:", error);
+        toast({
+            variant: "destructive",
+            title: "Sign-in Failed",
+            description: error.message || "Could not sign you in. Please check your credentials.",
+        });
+    } finally {
+        setLoading(false);
+    }
+  }
+
 
   const logout = async () => {
     setLoading(true);
     try {
       await signOut(auth);
       setUser(null);
-      router.push("/login"); // Force redirect on logout
+      router.push("/login"); 
       toast({
         title: "Logged Out",
         description: "You have been successfully logged out.",
       });
-    } catch (error) {
+    } catch (error: any) {
        console.error("Error during logout:", error);
        toast({
         variant: "destructive",
         title: "Logout Failed",
-        description: "Could not log you out. Please try again.",
+        description: error.message || "Could not log you out. Please try again.",
       });
     } finally {
         setLoading(false);
@@ -136,6 +173,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     user,
     loading,
     loginWithGoogle,
+    loginWithEmailAndPassword,
+    registerWithEmailAndPassword,
     logout,
   };
 

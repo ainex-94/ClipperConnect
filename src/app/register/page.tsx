@@ -10,14 +10,26 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Scissors, User, Briefcase } from "lucide-react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { Scissors, User, Briefcase, Loader2 } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
+import { Separator } from "@/components/ui/separator";
 
+const formSchema = z.object({
+  displayName: z.string().min(2, "Name must be at least 2 characters."),
+  email: z.string().email("Invalid email address."),
+  password: z.string().min(6, "Password must be at least 6 characters."),
+  role: z.enum(["customer", "barber"], { required_error: "Please select a role." }),
+});
 
 const GoogleIcon = () => (
     <svg className="mr-2 h-4 w-4" aria-hidden="true" focusable="false" data-prefix="fab" data-icon="google" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 488 512">
@@ -27,27 +39,28 @@ const GoogleIcon = () => (
 
 
 export default function RegisterPage() {
-  const { user, loginWithGoogle, loading } = useAuth();
+  const { user, loginWithGoogle, registerWithEmailAndPassword, loading } = useAuth();
   const router = useRouter();
-  const [role, setRole] = useState<"customer" | "barber">("customer");
   const { toast } = useToast();
+
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      displayName: "",
+      email: "",
+      password: "",
+      role: "customer",
+    },
+  });
 
   useEffect(() => {
     if (user) {
       router.push("/");
     }
   }, [user, router]);
-
-  const handleRegister = () => {
-      if (!role) {
-          toast({
-              variant: "destructive",
-              title: "Role not selected",
-              description: "Please select a role before registering.",
-          })
-          return;
-      }
-      loginWithGoogle(role);
+  
+  const onSubmit = (values: z.infer<typeof formSchema>) => {
+    registerWithEmailAndPassword(values.email, values.password, values.displayName, values.role);
   }
 
   return (
@@ -63,45 +76,119 @@ export default function RegisterPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col gap-6">
-            <RadioGroup defaultValue="customer" onValueChange={(value: "customer" | "barber") => setRole(value)} className="grid grid-cols-2 gap-4">
-              <div>
-                <RadioGroupItem value="customer" id="customer" className="peer sr-only" />
-                <Label
-                  htmlFor="customer"
-                  className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
-                >
-                  <User className="mb-3 h-6 w-6" />
-                  Customer
-                </Label>
-              </div>
-              <div>
-                <RadioGroupItem value="barber" id="barber" className="peer sr-only" />
-                <Label
-                  htmlFor="barber"
-                  className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
-                >
-                  <Briefcase className="mb-3 h-6 w-6" />
-                  Barber
-                </Label>
-              </div>
-            </RadioGroup>
-
-            <Button
-              onClick={handleRegister}
-              disabled={loading}
-              className="w-full"
-            >
-              <GoogleIcon />
-              {loading ? "Registering..." : `Register as ${role === 'customer' ? 'a Customer' : 'a Barber'}`}
-            </Button>
-            <p className="text-center text-sm text-muted-foreground">
-                Already have an account?{' '}
-                <Link href="/login" className="font-semibold text-primary hover:underline">
-                    Sign in
-                </Link>
-            </p>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="displayName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Full Name</FormLabel>
+                    <FormControl>
+                      <Input placeholder="John Doe" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                      <Input placeholder="name@example.com" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Password</FormLabel>
+                    <FormControl>
+                      <Input type="password" placeholder="••••••••" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+               <FormField
+                control={form.control}
+                name="role"
+                render={({ field }) => (
+                  <FormItem className="space-y-3">
+                    <FormLabel>Register as a...</FormLabel>
+                    <FormControl>
+                      <RadioGroup
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                        className="grid grid-cols-2 gap-4"
+                      >
+                        <FormItem>
+                           <RadioGroupItem value="customer" id="customer" className="peer sr-only" />
+                            <Label
+                              htmlFor="customer"
+                              className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
+                            >
+                              <User className="mb-3 h-6 w-6" />
+                              Customer
+                            </Label>
+                        </FormItem>
+                        <FormItem>
+                           <RadioGroupItem value="barber" id="barber" className="peer sr-only" />
+                            <Label
+                              htmlFor="barber"
+                              className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
+                            >
+                              <Briefcase className="mb-3 h-6 w-6" />
+                              Barber
+                            </Label>
+                        </FormItem>
+                      </RadioGroup>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <Button type="submit" className="w-full" disabled={loading}>
+                 {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                 Create Account
+              </Button>
+            </form>
+          </Form>
+          
+          <div className="relative my-4">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-background px-2 text-muted-foreground">
+                Or
+              </span>
+            </div>
           </div>
+          
+          <Button
+            variant="outline"
+            onClick={() => loginWithGoogle()}
+            disabled={loading}
+            className="w-full"
+          >
+            <GoogleIcon />
+            {loading ? "Signing up..." : "Sign up with Google"}
+          </Button>
+
+          <p className="mt-4 text-center text-sm text-muted-foreground">
+              Already have an account?{' '}
+              <Link href="/login" className="font-semibold text-primary hover:underline">
+                  Sign in
+              </Link>
+          </p>
         </CardContent>
       </Card>
     </div>

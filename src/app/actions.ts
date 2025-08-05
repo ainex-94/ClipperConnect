@@ -6,8 +6,8 @@ import {
   type SuggestRescheduleOptionsInput,
 } from "@/ai/flows/suggest-reschedule-options";
 import { db } from "@/lib/firebase/firebase";
-import { getDocument, getOrCreateChat } from "@/lib/firebase/firestore";
-import { addDoc, collection, serverTimestamp, doc, setDoc } from "firebase/firestore";
+import { getDocument, getOrCreateChat, UserProfile } from "@/lib/firebase/firestore";
+import { addDoc, collection, serverTimestamp, doc, setDoc, updateDoc } from "firebase/firestore";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
@@ -101,5 +101,34 @@ export async function addAppointment(values: z.infer<typeof appointmentFormSchem
     } catch (error) {
         console.error("Firestore Error:", error);
         return { error: "Failed to create appointment." };
+    }
+}
+
+const updateUserRoleSchema = z.object({
+    userId: z.string().min(1),
+    role: z.enum(['customer', 'barber', 'admin']),
+});
+
+export async function updateUserRole(values: z.infer<typeof updateUserRoleSchema>) {
+    const validatedFields = updateUserRoleSchema.safeParse(values);
+
+    if (!validatedFields.success) {
+        return {
+            error: "Invalid fields: " + validatedFields.error.errors.map(e => e.message).join(', '),
+        };
+    }
+    
+    const { userId, role } = validatedFields.data;
+
+    try {
+        const userRef = doc(db, "users", userId);
+        await updateDoc(userRef, { role });
+        
+        revalidatePath('/user-management');
+        return { success: "User role updated successfully!" };
+
+    } catch (error) {
+        console.error("Firestore Error:", error);
+        return { error: "Failed to update user role." };
     }
 }

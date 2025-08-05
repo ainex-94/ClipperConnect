@@ -23,6 +23,7 @@ import {
   LogIn,
   MessageSquare,
   Shield,
+  UserCog,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { useAuth } from "@/hooks/use-auth";
@@ -34,6 +35,7 @@ const allMenuItems = [
   { href: "/barbers", label: "Barbers", icon: Users, roles: ['admin', 'customer'] },
   { href: "/customers", label: "Customers", icon: Contact, roles: ['admin', 'barber'] },
   { href: "/chat", label: "Chat", icon: MessageSquare, roles: ['admin', 'barber', 'customer'] },
+  { href: "/user-management", label: "User Management", icon: UserCog, roles: ['admin'] },
   { href: "/settings", label: "Settings", icon: Settings, roles: ['admin', 'barber', 'customer'] },
 ];
 
