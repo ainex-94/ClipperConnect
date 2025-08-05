@@ -28,10 +28,10 @@ export default async function DashboardPage() {
   }).sort((a,b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
 
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 fade-in-animation">
       {user.role !== 'customer' && (
         <div className="lg:col-span-2">
-          <Card className="shadow-lg">
+          <Card>
             <CardHeader>
               <CardTitle>Intelligent Rescheduling</CardTitle>
               <CardDescription>
@@ -46,7 +46,7 @@ export default async function DashboardPage() {
       )}
 
       <div className={user.role === 'customer' ? "lg:col-span-3" : "lg:col-span-1"}>
-        <Card className="shadow-lg">
+        <Card>
           <CardHeader>
             <CardTitle>Upcoming Appointments</CardTitle>
             <CardDescription>Here are your confirmed appointments for today.</CardDescription>
