@@ -1,3 +1,4 @@
+
 "use server";
 
 import {
@@ -5,8 +6,8 @@ import {
   type SuggestRescheduleOptionsInput,
 } from "@/ai/flows/suggest-reschedule-options";
 import { db } from "@/lib/firebase/firebase";
-import { getDocument } from "@/lib/firebase/firestore";
-import { addDoc, collection } from "firebase/firestore";
+import { getDocument, getOrCreateChat } from "@/lib/firebase/firestore";
+import { addDoc, collection, serverTimestamp, doc, setDoc } from "firebase/firestore";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
@@ -89,7 +90,12 @@ export async function addAppointment(values: z.infer<typeof appointmentFormSchem
             status: 'Confirmed'
         });
 
+        // Create a chat between the customer and the barber
+        await getOrCreateChat(customerId, barberId);
+
+
         revalidatePath('/appointments'); // This tells Next.js to refetch the data on the appointments page
+        revalidatePath('/chat'); // This tells Next.js to refetch the data on the chat page
         return { success: "Appointment created successfully!" };
     } catch (error) {
         console.error("Firestore Error:", error);

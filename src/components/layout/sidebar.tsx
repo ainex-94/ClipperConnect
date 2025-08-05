@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -20,6 +21,7 @@ import {
   Scissors,
   LogOut,
   LogIn,
+  MessageSquare,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { useAuth } from "@/hooks/use-auth";
@@ -30,6 +32,7 @@ const menuItems = [
   { href: "/appointments", label: "Appointments", icon: Calendar },
   { href: "/barbers", label: "Barbers", icon: Users },
   { href: "/customers", label: "Customers", icon: Contact },
+  { href: "/chat", label: "Chat", icon: MessageSquare },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
