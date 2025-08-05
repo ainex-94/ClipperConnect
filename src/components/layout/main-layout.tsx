@@ -23,20 +23,22 @@ export default function MainLayout({
   const isPublicRoute = PUBLIC_ROUTES.includes(pathname);
 
   useEffect(() => {
-    // This effect runs only when loading is finished.
-    if (!loading) {
-      // If no user is logged in and they are on a protected route, redirect to login.
-      if (!user && !isPublicRoute) {
-        router.push('/login');
-      }
-      // If a user is logged in and they are on a public route, redirect to the dashboard.
-      if (user && isPublicRoute) {
-        router.push('/');
-      }
+    if (loading) {
+      return; // Wait until loading is complete before doing any redirects
     }
-  }, [user, loading, router, pathname, isPublicRoute]);
+
+    // If we have a user and they are on a public route (e.g., /login), redirect to home
+    if (user && isPublicRoute) {
+      router.push('/');
+    }
+
+    // If we don't have a user and they are on a protected route, redirect to login
+    if (!user && !isPublicRoute) {
+      router.push('/login');
+    }
+  }, [user, loading, router, isPublicRoute, pathname]);
   
-  // While loading, show a full-screen spinner to prevent any rendering or navigation.
+  // While authentication is in progress, show a loader.
   if (loading) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
@@ -45,14 +47,13 @@ export default function MainLayout({
     );
   }
 
-  // After loading, if the route is public and there's no user, show the public page (login/register).
+  // If on a public route and no user, show the public page (login/register).
   if (isPublicRoute && !user) {
     return <div className="min-h-screen w-full">{children}</div>;
   }
   
-  // If there's a user, show the main application layout.
-  // This also handles the case of a protected route after the user is confirmed.
-  if (user) {
+  // If we have a user and are on a protected route, show the main application layout.
+  if (user && !isPublicRoute) {
     return (
       <SidebarProvider>
         <div className="flex min-h-screen w-full">
@@ -66,8 +67,7 @@ export default function MainLayout({
     );
   }
 
-  // In the brief moment between loading and the redirect for unauthenticated users,
-  // show a spinner to prevent the protected route from flashing.
+  // In any other case (like redirecting), show a loader to prevent screen flicker.
   return (
     <div className="flex h-screen w-full items-center justify-center bg-background">
       <Loader2 className="h-8 w-8 animate-spin" />
