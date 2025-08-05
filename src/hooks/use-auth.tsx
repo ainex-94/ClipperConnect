@@ -8,14 +8,15 @@ import {
   useContext,
   ReactNode,
 } from "react";
-import { onAuthStateChanged, signInWithPopup, signOut, User } from "firebase/auth";
+import { onAuthStateChanged, signInWithPopup, signOut, User as FirebaseUser } from "firebase/auth";
 import { auth, googleProvider, db } from "@/lib/firebase/firebase";
 import { doc, setDoc, getDoc, updateDoc } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import { useToast } from "./use-toast";
+import { type UserProfile } from "@/lib/firebase/firestore";
 
 interface AuthContextType {
-  user: User | null;
+  user: UserProfile | null;
   loading: boolean;
   loginWithGoogle: (role?: 'customer' | 'barber') => void;
   logout: () => void;
@@ -24,30 +25,33 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const { toast } = useToast();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        // Check if user exists in Firestore
-        const userRef = doc(db, "users", user.uid);
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        const userRef = doc(db, "users", firebaseUser.uid);
         const docSnap = await getDoc(userRef);
-        if (!docSnap.exists()) {
-          // If not, create a new document.
-          // This case might happen if they signed up before roles were a thing.
-          await setDoc(userRef, {
-            uid: user.uid,
-            email: user.email,
-            displayName: user.displayName,
-            photoURL: user.photoURL,
+        if (docSnap.exists()) {
+          setUser({ id: docSnap.id, ...docSnap.data() } as UserProfile);
+        } else {
+          // This case might happen for users who existed before the user profile creation was robust.
+          // Or if Firestore document creation fails after auth success.
+          // We can create a default profile here.
+           await setDoc(userRef, {
+            uid: firebaseUser.uid,
+            email: firebaseUser.email,
+            displayName: firebaseUser.displayName,
+            photoURL: firebaseUser.photoURL,
             createdAt: new Date(),
-            role: 'customer', // Default role
+            role: 'customer', // Sensible default
           });
+          const newUserDoc = await getDoc(userRef);
+          setUser({ id: newUserDoc.id, ...newUserDoc.data() } as UserProfile);
         }
-        setUser(user);
       } else {
         setUser(null);
       }
@@ -57,38 +61,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => unsubscribe();
   }, []);
 
-  const loginWithGoogle = async (role?: 'customer' | 'barber') => {
+  const loginWithGoogle = async (role: 'customer' | 'barber' = 'customer') => {
     setLoading(true);
     try {
       const result = await signInWithPopup(auth, googleProvider);
-      const user = result.user;
+      const firebaseUser = result.user;
 
-      const userRef = doc(db, "users", user.uid);
+      const userRef = doc(db, "users", firebaseUser.uid);
       const docSnap = await getDoc(userRef);
 
       if (!docSnap.exists()) {
-        await setDoc(userRef, {
-          uid: user.uid,
-          email: user.email,
-          displayName: user.displayName,
-          photoURL: user.photoURL,
-          createdAt: new Date(),
-          role: role || 'customer',
-        });
+        const newUserProfile: Omit<UserProfile, 'id'> = {
+            uid: firebaseUser.uid,
+            email: firebaseUser.email!,
+            displayName: firebaseUser.displayName!,
+            photoURL: firebaseUser.photoURL!,
+            createdAt: new Date().toISOString(),
+            role: role,
+        };
+        await setDoc(userRef, newUserProfile);
+         setUser({ id: firebaseUser.uid, ...newUserProfile });
         toast({
             title: "Registration Successful",
             description: "Welcome to ClipperConnect!",
         });
       } else {
-        if (role && docSnap.data().role !== role) {
+        const userProfile = { id: docSnap.id, ...docSnap.data() } as UserProfile;
+        if (role && userProfile.role !== role) {
              await updateDoc(userRef, { role: role });
+             userProfile.role = role;
         }
+        setUser(userProfile);
         toast({
             title: "Login Successful",
             description: "Welcome back!",
         });
       }
-      router.push("/");
+      // No automatic redirect, handled by MainLayout
     } catch (error) {
       console.error("Error during Google sign-in:", error);
       toast({
@@ -96,7 +105,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         title: "Sign-in Failed",
         description: "Could not sign you in with Google. Please try again.",
       });
-      setLoading(false);
+    } finally {
+        setLoading(false);
     }
   };
 
@@ -104,7 +114,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     try {
       await signOut(auth);
-      router.push("/login");
+      setUser(null);
+      router.push("/login"); // Force redirect on logout
       toast({
         title: "Logged Out",
         description: "You have been successfully logged out.",

@@ -2,10 +2,12 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { getCollection } from "@/lib/firebase/firestore";
+import { getAppointmentsForUser } from "@/lib/firebase/firestore";
 import { MoreHorizontal } from "lucide-react";
 import { format } from 'date-fns';
 import { NewAppointmentDialog } from "@/components/new-appointment-dialog";
+import { getCurrentUser } from "@/lib/firebase/auth-actions";
+import { redirect } from "next/navigation";
 
 interface Appointment {
   id: string;
@@ -17,7 +19,12 @@ interface Appointment {
 }
 
 export default async function AppointmentsPage() {
-  const appointments: Appointment[] = await getCollection("appointments");
+  const user = await getCurrentUser();
+  if (!user) {
+    redirect('/login');
+  }
+
+  const appointments: Appointment[] = await getAppointmentsForUser(user.uid, user.role);
 
   const getStatusVariant = (status: string) => {
     switch (status) {
@@ -42,7 +49,7 @@ export default async function AppointmentsPage() {
             Manage all your upcoming and past appointments.
           </CardDescription>
         </div>
-        <NewAppointmentDialog />
+        {user.role !== 'barber' && <NewAppointmentDialog />}
       </CardHeader>
       <CardContent>
         <Table>

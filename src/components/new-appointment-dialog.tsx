@@ -35,6 +35,7 @@ import {
 } from "@/components/ui/select";
 import { PlusCircle, Loader2 } from "lucide-react";
 import { getCustomers, getBarbers } from "@/lib/firebase/firestore";
+import { useAuth } from "@/hooks/use-auth";
 
 const formSchema = z.object({
   customerId: z.string({ required_error: "Please select a customer." }),
@@ -50,6 +51,7 @@ interface User {
 
 export function NewAppointmentDialog() {
   const { toast } = useToast();
+  const { user: currentUser } = useAuth();
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [customers, setCustomers] = useState<User[]>([]);
@@ -58,24 +60,37 @@ export function NewAppointmentDialog() {
   useEffect(() => {
     if (open) {
       const fetchUsers = async () => {
-        const [customerData, barberData] = await Promise.all([
-          getCustomers(),
-          getBarbers(),
-        ]);
-        setCustomers(customerData);
+        // Admins can book for any customer, customers book for themselves
+        const customerData = currentUser?.role === 'admin' ? await getCustomers() : (currentUser ? [currentUser] : []);
+        const barberData = await getBarbers();
+        setCustomers(customerData as User[]);
         setBarbers(barberData);
       };
       fetchUsers();
     }
-  }, [open]);
+  }, [open, currentUser]);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      service: "",
-      dateTime: new Date().toISOString().substring(0, 16),
+      service: "Haircut",
+      dateTime: new Date(new Date().getTime() + 60 * 60 * 1000).toISOString().substring(0, 16), // 1 hour from now
+      customerId: currentUser?.role === 'customer' ? currentUser.uid : undefined,
     },
   });
+
+  // Reset form when current user changes and dialog is open
+  useEffect(() => {
+    if (currentUser) {
+      form.reset({
+        service: "Haircut",
+        dateTime: new Date(new Date().getTime() + 60 * 60 * 1000).toISOString().substring(0, 16),
+        customerId: currentUser?.role === 'customer' ? currentUser.uid : undefined,
+        barberId: undefined,
+      });
+    }
+  }, [currentUser, form, open]);
+
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
@@ -94,7 +109,6 @@ export function NewAppointmentDialog() {
         description: "New appointment has been created.",
       });
       setOpen(false);
-      form.reset();
     }
   }
 
@@ -121,7 +135,7 @@ export function NewAppointmentDialog() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Customer</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value} disabled={currentUser?.role === 'customer'}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select a customer" />
@@ -145,7 +159,7 @@ export function NewAppointmentDialog() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Barber</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select a barber" />

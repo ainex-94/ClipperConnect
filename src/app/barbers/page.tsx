@@ -2,8 +2,10 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { getCurrentUser } from "@/lib/firebase/auth-actions";
 import { getBarbers } from "@/lib/firebase/firestore";
 import { Phone, Mail, Star } from "lucide-react";
+import { redirect } from "next/navigation";
 
 interface Barber {
     id: string;
@@ -16,6 +18,11 @@ interface Barber {
 }
 
 export default async function BarbersPage() {
+  const user = await getCurrentUser();
+  if (!user || user.role === 'barber') {
+    redirect('/');
+  }
+
   const barbers: Barber[] = await getBarbers();
 
   return (
@@ -25,7 +32,7 @@ export default async function BarbersPage() {
           <h1 className="text-3xl font-bold">Our Barbers</h1>
           <p className="text-muted-foreground">The artists behind the clippers.</p>
         </div>
-        <Button>Add New Barber</Button>
+        {user.role === 'admin' && <Button>Add New Barber</Button>}
       </div>
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {barbers.map((barber) => (

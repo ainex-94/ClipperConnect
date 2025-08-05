@@ -4,9 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { getCurrentUser } from "@/lib/firebase/auth-actions";
 import { getCustomers } from "@/lib/firebase/firestore";
 import { Search } from "lucide-react";
 import { format } from 'date-fns';
+import { redirect } from "next/navigation";
 
 interface Customer {
     id: string;
@@ -19,6 +21,10 @@ interface Customer {
 }
 
 export default async function CustomersPage() {
+    const user = await getCurrentUser();
+    if (!user || user.role === 'customer') {
+      redirect('/');
+    }
     const customers: Customer[] = await getCustomers();
 
   return (
@@ -34,7 +40,7 @@ export default async function CustomersPage() {
                     <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input placeholder="Search customers..." className="pl-8 w-full" />
                 </div>
-                <Button>Add Customer</Button>
+                {user.role === 'admin' && <Button>Add Customer</Button>}
             </div>
         </div>
       </CardHeader>

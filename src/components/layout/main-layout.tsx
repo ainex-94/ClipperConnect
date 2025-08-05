@@ -9,6 +9,8 @@ import { useRouter, usePathname } from "next/navigation";
 import { useEffect } from "react";
 import { Loader2 } from "lucide-react";
 
+const PUBLIC_ROUTES = ['/login', '/register'];
+
 export default function MainLayout({
   children,
 }: {
@@ -17,12 +19,17 @@ export default function MainLayout({
   const { user, loading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  
+  const isPublicRoute = PUBLIC_ROUTES.includes(pathname);
 
   useEffect(() => {
-    if (!loading && !user && pathname !== '/login') {
+    if (!loading && !user && !isPublicRoute) {
       router.push('/login');
     }
-  }, [user, loading, router, pathname]);
+    if (!loading && user && isPublicRoute) {
+      router.push('/');
+    }
+  }, [user, loading, router, pathname, isPublicRoute]);
 
   if (loading) {
     return (
@@ -32,17 +39,12 @@ export default function MainLayout({
     );
   }
   
-  if (!user && pathname !== '/login') {
-    return null; 
-  }
-
-  if (user && pathname === '/login') {
-     router.push('/');
-     return null;
-  }
-
-  if (pathname === '/login') {
+  if (isPublicRoute) {
     return <>{children}</>;
+  }
+
+  if (!user) {
+    return null; 
   }
 
   return (

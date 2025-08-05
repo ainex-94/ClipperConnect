@@ -1,7 +1,7 @@
 
 'use server';
 
-import { collection, getDocs, getDoc, doc, query, where, DocumentData, Timestamp, serverTimestamp, addDoc, setDoc, orderBy, limit, updateDoc } from 'firebase/firestore';
+import { collection, getDocs, getDoc, doc, query, where, DocumentData, Timestamp, serverTimestamp, addDoc, setDoc, orderBy, limit, updateDoc, or } from 'firebase/firestore';
 import { db } from '@/lib/firebase/firebase';
 
 // Type Definitions
@@ -12,6 +12,7 @@ export interface UserProfile {
     email: string;
     photoURL: string;
     role: 'customer' | 'barber' | 'admin';
+    createdAt: string;
 }
 
 export interface Message {
@@ -34,6 +35,19 @@ export interface Chat {
         text: string;
         timestamp: Timestamp;
     }
+}
+
+export interface Appointment {
+  id: string;
+  customerId: string;
+  customerName: string;
+  customerPhotoURL?: string;
+  barberId: string;
+  barberName: string;
+  barberPhotoURL?: string;
+  service: string;
+  dateTime: string;
+  status: 'Confirmed' | 'Pending' | 'Completed' | 'Cancelled';
 }
 
 
@@ -77,6 +91,20 @@ export async function getDocument(collectionName: string, docId: string) {
     } else {
         return null;
     }
+}
+
+export async function getAppointmentsForUser(userId: string, userRole: UserProfile['role']): Promise<Appointment[]> {
+    let q;
+    if (userRole === 'admin') {
+        q = query(collection(db, "appointments"), orderBy('dateTime', 'desc'));
+    } else if (userRole === 'barber') {
+        q = query(collection(db, "appointments"), where('barberId', '==', userId), orderBy('dateTime', 'desc'));
+    } else { // customer
+        q = query(collection(db, "appointments"), where('customerId', '==', userId), orderBy('dateTime', 'desc'));
+    }
+
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => safeJsonParse({ id: doc.id, ...doc.data() }));
 }
 
 // CHAT FUNCTIONS

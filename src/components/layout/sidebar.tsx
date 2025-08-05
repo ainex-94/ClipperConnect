@@ -22,23 +22,26 @@ import {
   LogOut,
   LogIn,
   MessageSquare,
+  Shield,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "../ui/button";
 
-const menuItems = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/appointments", label: "Appointments", icon: Calendar },
-  { href: "/barbers", label: "Barbers", icon: Users },
-  { href: "/customers", label: "Customers", icon: Contact },
-  { href: "/chat", label: "Chat", icon: MessageSquare },
-  { href: "/settings", label: "Settings", icon: Settings },
+const allMenuItems = [
+  { href: "/", label: "Dashboard", icon: LayoutDashboard, roles: ['admin', 'barber', 'customer'] },
+  { href: "/appointments", label: "Appointments", icon: Calendar, roles: ['admin', 'barber', 'customer'] },
+  { href: "/barbers", label: "Barbers", icon: Users, roles: ['admin', 'customer'] },
+  { href: "/customers", label: "Customers", icon: Contact, roles: ['admin', 'barber'] },
+  { href: "/chat", label: "Chat", icon: MessageSquare, roles: ['admin', 'barber', 'customer'] },
+  { href: "/settings", label: "Settings", icon: Settings, roles: ['admin', 'barber', 'customer'] },
 ];
 
 export default function AppSidebar() {
   const pathname = usePathname();
   const { user, logout } = useAuth();
+
+  const menuItems = allMenuItems.filter(item => user && item.roles.includes(user.role));
 
   return (
     <Sidebar className="border-r">

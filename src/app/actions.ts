@@ -69,7 +69,6 @@ export async function addAppointment(values: z.infer<typeof appointmentFormSchem
     
     const { customerId, barberId, service, dateTime } = validatedFields.data;
     
-    // Fetch customer and barber names from Firestore
     const customerDoc = await getDocument("users", customerId);
     const barberDoc = await getDocument("users", barberId);
 
@@ -78,24 +77,26 @@ export async function addAppointment(values: z.infer<typeof appointmentFormSchem
     }
 
     const customerName = customerDoc.displayName;
+    const customerPhotoURL = customerDoc.photoURL;
     const barberName = barberDoc.displayName;
+    const barberPhotoURL = barberDoc.photoURL;
 
 
     try {
         await addDoc(collection(db, "appointments"), {
             ...validatedFields.data,
-            // Storing names for easier display, but IDs are the source of truth
             customerName,
+            customerPhotoURL,
             barberName,
+            barberPhotoURL,
             status: 'Confirmed'
         });
 
-        // Create a chat between the customer and the barber
         await getOrCreateChat(customerId, barberId);
 
-
-        revalidatePath('/appointments'); // This tells Next.js to refetch the data on the appointments page
-        revalidatePath('/chat'); // This tells Next.js to refetch the data on the chat page
+        revalidatePath('/appointments');
+        revalidatePath('/'); // For dashboard
+        revalidatePath('/chat');
         return { success: "Appointment created successfully!" };
     } catch (error) {
         console.error("Firestore Error:", error);
