@@ -6,7 +6,7 @@ import AppHeader from "@/components/layout/header";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { useAuth } from "@/hooks/use-auth";
 import { useRouter, usePathname } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 
 const PUBLIC_ROUTES = ['/login', '/register'];
@@ -19,19 +19,23 @@ export default function MainLayout({
   const { user, loading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const [isReady, setIsReady] = useState(false);
   
   const isPublicRoute = PUBLIC_ROUTES.includes(pathname);
 
   useEffect(() => {
-    if (!loading && !user && !isPublicRoute) {
-      router.push('/login');
-    }
-    if (!loading && user && isPublicRoute) {
-      router.push('/');
+    if (!loading) {
+      if (!user && !isPublicRoute) {
+        router.push('/login');
+      } else if (user && isPublicRoute) {
+        router.push('/');
+      } else {
+        setIsReady(true);
+      }
     }
   }, [user, loading, router, pathname, isPublicRoute]);
-
-  if (loading) {
+  
+  if (loading || !isReady) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin" />
@@ -39,12 +43,17 @@ export default function MainLayout({
     );
   }
   
-  if (isPublicRoute) {
+  if (isPublicRoute && !user) {
     return <div className="min-h-screen w-full">{children}</div>;
   }
 
   if (!user) {
-    return null; 
+    // This case should ideally not be hit due to the effect, but it's a safe fallback.
+    return (
+       <div className="flex h-screen w-full items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
   }
 
   return (
