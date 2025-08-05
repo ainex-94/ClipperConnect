@@ -19,7 +19,7 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 
 export async function getCurrentUser(): Promise<UserProfile | null> {
-  const sessionCookie = cookies().get('__session')?.value;
+  const sessionCookie = (await cookies()).get('__session')?.value;
 
   if (!sessionCookie) {
     return null;
