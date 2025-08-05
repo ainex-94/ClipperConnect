@@ -46,7 +46,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             email: firebaseUser.email,
             displayName: firebaseUser.displayName,
             photoURL: firebaseUser.photoURL,
-            createdAt: new Date(),
+            createdAt: new Date().toISOString(),
             role: 'customer', // Sensible default
           });
           const newUserDoc = await getDoc(userRef);

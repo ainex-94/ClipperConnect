@@ -3,19 +3,10 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { getCurrentUser } from "@/lib/firebase/auth-actions";
-import { getBarbers } from "@/lib/firebase/firestore";
+import { getBarbers, UserProfile } from "@/lib/firebase/firestore";
 import { Phone, Mail, Star } from "lucide-react";
 import { redirect } from "next/navigation";
-
-interface Barber {
-    id: string;
-    displayName: string;
-    email: string;
-    photoURL: string;
-    specialty?: string;
-    rating?: number;
-    phone?: string;
-}
+import { ViewScheduleDialog } from "@/components/view-schedule-dialog";
 
 export default async function BarbersPage() {
   const user = await getCurrentUser();
@@ -23,7 +14,7 @@ export default async function BarbersPage() {
     redirect('/');
   }
 
-  const barbers: Barber[] = await getBarbers();
+  const barbers: UserProfile[] = await getBarbers();
 
   return (
     <div>
@@ -62,7 +53,7 @@ export default async function BarbersPage() {
               </div>
             </CardContent>
             <CardFooter>
-              <Button variant="outline" className="w-full">View Schedule</Button>
+                <ViewScheduleDialog barber={barber} />
             </CardFooter>
           </Card>
         ))}

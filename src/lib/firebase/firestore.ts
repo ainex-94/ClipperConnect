@@ -13,6 +13,16 @@ export interface UserProfile {
     photoURL: string;
     role: 'customer' | 'barber' | 'admin';
     createdAt: string;
+    specialty?: string;
+    rating?: number;
+    phone?: string;
+    bio?: string;
+    availability?: {
+        [key: string]: {
+            start: string;
+            end: string;
+        } | null
+    }
 }
 
 export interface Message {

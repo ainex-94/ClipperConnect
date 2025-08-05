@@ -11,12 +11,13 @@ import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/use-auth";
-import { doc, updateDoc } from "firebase/firestore";
+import { doc, updateDoc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
 import { Loader2 } from "lucide-react";
 
+const daysOfWeek = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
 
 export default function SettingsPage() {
   const { user } = useAuth();
@@ -27,6 +28,7 @@ export default function SettingsPage() {
     email: "",
     bio: ""
   });
+  const [availability, setAvailability] = useState<Record<string, { start: string; end: string; enabled: boolean }>>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -36,10 +38,34 @@ export default function SettingsPage() {
         firstName: nameParts[0],
         lastName: nameParts.slice(1).join(" "),
         email: user.email || "",
-        // Fetch bio from firestore if available, for now it's empty
-        bio: "" 
+        bio: user.bio || "" 
       });
-      setLoading(false);
+
+      if (user.role === 'barber') {
+        const fetchUserData = async () => {
+           const userRef = doc(db, "users", user.uid);
+           const docSnap = await getDoc(userRef);
+           if (docSnap.exists()) {
+             const userData = docSnap.data();
+             setFormData(prev => ({...prev, bio: userData.bio || ""}));
+             
+             const initialAvailability: any = {};
+             daysOfWeek.forEach(day => {
+               const dayAvail = userData.availability?.[day];
+               initialAvailability[day] = {
+                 start: dayAvail?.start || "09:00",
+                 end: dayAvail?.end || "17:00",
+                 enabled: !!dayAvail,
+               };
+             });
+             setAvailability(initialAvailability);
+           }
+           setLoading(false);
+        };
+        fetchUserData();
+      } else {
+        setLoading(false);
+      }
     }
   }, [user]);
 
@@ -47,6 +73,16 @@ export default function SettingsPage() {
     const { id, value } = e.target;
     setFormData(prev => ({ ...prev, [id]: value }));
   }
+
+  const handleAvailabilityChange = (day: string, field: 'start' | 'end' | 'enabled', value: string | boolean) => {
+    setAvailability(prev => ({
+      ...prev,
+      [day]: {
+        ...prev[day],
+        [field]: value
+      }
+    }));
+  };
 
   const handleSaveChanges = async () => {
     if (!user) {
@@ -56,11 +92,27 @@ export default function SettingsPage() {
     setLoading(true);
     try {
       const userRef = doc(db, "users", user.uid);
-      await updateDoc(userRef, {
+      const updateData: any = {
         displayName: `${formData.firstName} ${formData.lastName}`.trim(),
         email: formData.email,
-        // you would save other fields like 'bio' here as well
-      });
+        bio: formData.bio,
+      };
+
+      if (user.role === 'barber') {
+        updateData.availability = {};
+        daysOfWeek.forEach(day => {
+          if (availability[day].enabled) {
+            updateData.availability[day] = {
+              start: availability[day].start,
+              end: availability[day].end,
+            };
+          } else {
+             updateData.availability[day] = null;
+          }
+        });
+      }
+
+      await updateDoc(userRef, updateData);
       toast({ title: "Success", description: "Profile updated successfully." });
     } catch (error) {
       console.error("Error updating profile: ", error);
@@ -70,7 +122,7 @@ export default function SettingsPage() {
     }
   }
   
-  if (loading && !user) {
+  if (loading || !user) {
       return <div className="flex items-center justify-center h-full"><Loader2 className="h-8 w-8 animate-spin" /></div>
   }
 
@@ -122,6 +174,61 @@ export default function SettingsPage() {
         </div>
       </div>
       
+      {user.role === 'barber' && (
+        <>
+        <Separator />
+         <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
+            <div className="md:col-span-1">
+              <h2 className="text-xl font-semibold">Availability</h2>
+              <p className="text-sm text-muted-foreground">Set your weekly working hours.</p>
+            </div>
+            <div className="md:col-span-2">
+              <Card>
+                <CardContent className="pt-6 space-y-4">
+                  {daysOfWeek.map(day => (
+                    <div key={day} className="flex items-center justify-between gap-4 p-2 rounded-md transition-colors hover:bg-muted/50">
+                      <div className="flex items-center gap-4">
+                        <Checkbox 
+                          id={`enabled-${day}`} 
+                          checked={availability[day]?.enabled}
+                          onCheckedChange={(checked) => handleAvailabilityChange(day, 'enabled', !!checked)}
+                        />
+                        <Label htmlFor={`enabled-${day}`} className="capitalize font-medium text-base w-24">{day}</Label>
+                      </div>
+                      <div className="flex items-center gap-2">
+                         <Input
+                          type="time"
+                          id={`start-${day}`}
+                          value={availability[day]?.start}
+                          onChange={(e) => handleAvailabilityChange(day, 'start', e.target.value)}
+                          disabled={!availability[day]?.enabled}
+                          className="w-32"
+                         />
+                         <span>-</span>
+                         <Input
+                          type="time"
+                          id={`end-${day}`}
+                          value={availability[day]?.end}
+                          onChange={(e) => handleAvailabilityChange(day, 'end', e.target.value)}
+                          disabled={!availability[day]?.enabled}
+                          className="w-32"
+                         />
+                      </div>
+                    </div>
+                  ))}
+                </CardContent>
+                <CardFooter className="border-t px-6 py-4">
+                  <Button onClick={handleSaveChanges} disabled={loading}>
+                    {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Save Availability
+                  </Button>
+                </CardFooter>
+              </Card>
+            </div>
+          </div>
+        </>
+      )}
+
       <Separator />
 
       <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
