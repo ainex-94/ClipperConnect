@@ -1,18 +1,23 @@
-
 // src/app/barbers/page.tsx
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { getCollection } from "@/lib/firebase/firestore";
 import { Phone, Mail, Star } from "lucide-react";
 
-const barbers = [
-  { name: "Alexandre Dubois", specialty: "Classic Cuts", rating: 4.9, avatar: "https://placehold.co/128x128.png?text=AD", email: "alex.d@example.com", phone: "+1 234 567 890" },
-  { name: "Maxime Durand", specialty: "Modern Fades", rating: 4.8, avatar: "https://placehold.co/128x128.png?text=MD", email: "max.d@example.com", phone: "+1 345 678 901" },
-  { name: "Lucas Martin", specialty: "Beard Sculpting", rating: 4.9, avatar: "https://placehold.co/128x128.png?text=LM", email: "lucas.m@example.com", phone: "+1 456 789 012" },
-  { name: "Julien Moreau", specialty: "Creative Color", rating: 4.7, avatar: "https://placehold.co/128x128.png?text=JM", email: "julien.m@example.com", phone: "+1 567 890 123" },
-];
+interface Barber {
+    id: string;
+    displayName: string;
+    email: string;
+    photoURL: string;
+    specialty?: string;
+    rating?: number;
+    phone?: string;
+}
 
-export default function BarbersPage() {
+export default async function BarbersPage() {
+  const barbers: Barber[] = await getCollection("users");
+
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
@@ -24,17 +29,17 @@ export default function BarbersPage() {
       </div>
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {barbers.map((barber) => (
-          <Card key={barber.name} className="flex flex-col">
+          <Card key={barber.id} className="flex flex-col">
             <CardHeader className="items-center">
               <Avatar className="w-24 h-24 mb-2">
-                <AvatarImage data-ai-hint="person portrait" src={barber.avatar} />
-                <AvatarFallback>{barber.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
+                <AvatarImage data-ai-hint="person portrait" src={barber.photoURL} />
+                <AvatarFallback>{barber.displayName?.split(' ').map(n => n[0]).join('')}</AvatarFallback>
               </Avatar>
-              <CardTitle>{barber.name}</CardTitle>
-              <CardDescription>{barber.specialty}</CardDescription>
+              <CardTitle>{barber.displayName}</CardTitle>
+              <CardDescription>{barber.specialty || 'All-rounder'}</CardDescription>
               <div className="flex items-center gap-1 text-yellow-500 mt-1">
                 <Star className="w-4 h-4 fill-current" />
-                <span>{barber.rating}</span>
+                <span>{barber.rating || 4.8}</span>
               </div>
             </CardHeader>
             <CardContent className="flex-grow">
@@ -45,7 +50,7 @@ export default function BarbersPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <Phone className="w-4 h-4" />
-                  <span>{barber.phone}</span>
+                  <span>{barber.phone || '+1 234 567 890'}</span>
                 </div>
               </div>
             </CardContent>

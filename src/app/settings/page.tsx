@@ -1,4 +1,3 @@
-
 // src/app/settings/page.tsx
 "use client"
 
@@ -11,8 +10,70 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { useAuth } from "@/hooks/use-auth";
+import { doc, updateDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase/firebase";
+import { useToast } from "@/hooks/use-toast";
+import { useState, useEffect } from "react";
+import { Loader2 } from "lucide-react";
+
 
 export default function SettingsPage() {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [formData, setFormData] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    bio: ""
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (user) {
+      const nameParts = user.displayName?.split(" ") || ["", ""];
+      setFormData({
+        firstName: nameParts[0],
+        lastName: nameParts.slice(1).join(" "),
+        email: user.email || "",
+        // Fetch bio from firestore if available, for now it's empty
+        bio: "" 
+      });
+      setLoading(false);
+    }
+  }, [user]);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { id, value } = e.target;
+    setFormData(prev => ({ ...prev, [id]: value }));
+  }
+
+  const handleSaveChanges = async () => {
+    if (!user) {
+      toast({ variant: "destructive", title: "Error", description: "You must be logged in to save changes." });
+      return;
+    }
+    setLoading(true);
+    try {
+      const userRef = doc(db, "users", user.uid);
+      await updateDoc(userRef, {
+        displayName: `${formData.firstName} ${formData.lastName}`.trim(),
+        email: formData.email,
+        // you would save other fields like 'bio' here as well
+      });
+      toast({ title: "Success", description: "Profile updated successfully." });
+    } catch (error) {
+      console.error("Error updating profile: ", error);
+      toast({ variant: "destructive", title: "Error", description: "Failed to update profile." });
+    } finally {
+      setLoading(false);
+    }
+  }
+  
+  if (loading && !user) {
+      return <div className="flex items-center justify-center h-full"><Loader2 className="h-8 w-8 animate-spin" /></div>
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -34,25 +95,28 @@ export default function SettingsPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="firstName">First Name</Label>
-                    <Input id="firstName" defaultValue="John" />
+                    <Input id="firstName" value={formData.firstName} onChange={handleInputChange} />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="lastName">Last Name</Label>
-                    <Input id="lastName" defaultValue="Doe" />
+                    <Input id="lastName" value={formData.lastName} onChange={handleInputChange} />
                   </div>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
-                  <Input id="email" type="email" defaultValue="john.doe@example.com" />
+                  <Input id="email" type="email" value={formData.email} onChange={handleInputChange} />
                 </div>
                  <div className="space-y-2">
                   <Label htmlFor="bio">Bio</Label>
-                  <Textarea id="bio" placeholder="Tell us a little about yourself." defaultValue="Experienced barber specializing in modern and classic cuts." />
+                  <Textarea id="bio" placeholder="Tell us a little about yourself." value={formData.bio} onChange={handleInputChange} />
                 </div>
               </div>
             </CardContent>
             <CardFooter className="border-t px-6 py-4">
-              <Button>Save Changes</Button>
+              <Button onClick={handleSaveChanges} disabled={loading}>
+                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Save Changes
+              </Button>
             </CardFooter>
           </Card>
         </div>

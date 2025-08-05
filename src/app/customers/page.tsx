@@ -1,21 +1,26 @@
-
 // src/app/customers/page.tsx
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { getCollection } from "@/lib/firebase/firestore";
 import { Search } from "lucide-react";
+import { format } from 'date-fns';
 
-const customers = [
-  { name: "Liam Johnson", email: "liam@example.com", phone: "202-555-0198", totalAppointments: 12, lastVisit: "2024-07-28", avatar: "https://placehold.co/100x100.png?text=LJ" },
-  { name: "Olivia Smith", email: "olivia@example.com", phone: "202-555-0134", totalAppointments: 8, lastVisit: "2024-08-02", avatar: "https://placehold.co/100x100.png?text=OS" },
-  { name: "Noah Williams", email: "noah@example.com", phone: "202-555-0156", totalAppointments: 23, lastVisit: "2024-08-10", avatar: "https://placehold.co/100x100.png?text=NW" },
-  { name: "Emma Brown", email: "emma@example.com", phone: "202-555-0187", totalAppointments: 5, lastVisit: "2024-06-15", avatar: "https://placehold.co/100x100.png?text=EB" },
-  { name: "Oliver Jones", email: "oliver@example.com", phone: "202-555-0143", totalAppointments: 15, lastVisit: "2024-08-05", avatar: "https://placehold.co/100x100.png?text=OJ" },
-];
+interface Customer {
+    id: string;
+    displayName: string;
+    email: string;
+    photoURL: string;
+    phone?: string;
+    totalAppointments?: number;
+    createdAt: string;
+}
 
-export default function CustomersPage() {
+export default async function CustomersPage() {
+    const customers: Customer[] = await getCollection("users");
+
   return (
     <Card>
       <CardHeader>
@@ -40,27 +45,27 @@ export default function CustomersPage() {
               <TableHead>Name</TableHead>
               <TableHead className="hidden md:table-cell">Contact</TableHead>
               <TableHead className="hidden sm:table-cell">Total Appointments</TableHead>
-              <TableHead className="text-right">Last Visit</TableHead>
+              <TableHead className="text-right">Member Since</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {customers.map((customer) => (
-              <TableRow key={customer.email}>
+              <TableRow key={customer.id}>
                 <TableCell>
                   <div className="flex items-center gap-3">
                     <Avatar>
-                      <AvatarImage data-ai-hint="person portrait" src={customer.avatar} />
-                      <AvatarFallback>{customer.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
+                      <AvatarImage data-ai-hint="person portrait" src={customer.photoURL} />
+                      <AvatarFallback>{customer.displayName?.split(' ').map(n => n[0]).join('')}</AvatarFallback>
                     </Avatar>
-                    <span className="font-medium">{customer.name}</span>
+                    <span className="font-medium">{customer.displayName}</span>
                   </div>
                 </TableCell>
                 <TableCell className="hidden md:table-cell">
                     <div>{customer.email}</div>
-                    <div className="text-muted-foreground text-xs">{customer.phone}</div>
+                    <div className="text-muted-foreground text-xs">{customer.phone || 'N/A'}</div>
                 </TableCell>
-                <TableCell className="hidden sm:table-cell text-center">{customer.totalAppointments}</TableCell>
-                <TableCell className="text-right">{customer.lastVisit}</TableCell>
+                <TableCell className="hidden sm:table-cell text-center">{customer.totalAppointments || 0}</TableCell>
+                <TableCell className="text-right">{format(new Date(customer.createdAt), 'PPP')}</TableCell>
               </TableRow>
             ))}
           </TableBody>

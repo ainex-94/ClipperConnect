@@ -1,21 +1,24 @@
-
 // src/app/appointments/page.tsx
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { getCollection } from "@/lib/firebase/firestore";
 import { MoreHorizontal } from "lucide-react";
+import { format } from 'date-fns';
 
-const appointments = [
-  { id: "APT001", customer: "Liam Johnson", barber: "Alexandre Dubois", service: "Men's Haircut", date: "2024-08-15", time: "10:00 AM", status: "Confirmed" },
-  { id: "APT002", customer: "Olivia Smith", barber: "Maxime Durand", service: "Beard Trim", date: "2024-08-15", time: "10:30 AM", status: "Confirmed" },
-  { id: "APT003", customer: "Noah Williams", barber: "Lucas Martin", service: "Haircut + Shave", date: "2024-08-15", time: "11:00 AM", status: "Pending" },
-  { id: "APT004", customer: "Emma Brown", barber: "Alexandre Dubois", service: "Kids Haircut", date: "2024-08-15", time: "11:30 AM", status: "Completed" },
-  { id: "APT005", customer: "Oliver Jones", barber: "Maxime Durand", service: "Foil Shave", date: "2024-08-16", time: "02:00 PM", status: "Cancelled" },
-  { id: "APT006", customer: "Ava Garcia", barber: "Lucas Martin", service: "Line Up", date: "2024-08-16", time: "02:45 PM", status: "Confirmed" },
-];
+interface Appointment {
+  id: string;
+  customer: string;
+  barber: string;
+  service: string;
+  dateTime: string;
+  status: 'Confirmed' | 'Pending' | 'Completed' | 'Cancelled';
+}
 
-export default function AppointmentsPage() {
+export default async function AppointmentsPage() {
+  const appointments: Appointment[] = await getCollection("appointments");
+
   const getStatusVariant = (status: string) => {
     switch (status) {
       case "Confirmed":
@@ -56,7 +59,7 @@ export default function AppointmentsPage() {
                 <TableCell className="font-medium">{appointment.customer}</TableCell>
                 <TableCell>{appointment.barber}</TableCell>
                 <TableCell>{appointment.service}</TableCell>
-                <TableCell>{appointment.date} @ {appointment.time}</TableCell>
+                <TableCell>{format(new Date(appointment.dateTime), "PPP p")}</TableCell>
                 <TableCell>
                   <Badge variant={getStatusVariant(appointment.status) as any}>{appointment.status}</Badge>
                 </TableCell>
