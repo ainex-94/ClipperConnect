@@ -36,28 +36,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       if (firebaseUser) {
-        // User is signed in, set up a real-time listener for their profile
         const userRef = doc(db, 'users', firebaseUser.uid);
+        
         const unsubscribeFirestore = onSnapshot(userRef, (docSnap) => {
           if (docSnap.exists()) {
             setUser({ id: docSnap.id, ...docSnap.data() } as UserProfile);
           } else {
-            // This case might happen if the user's Firestore doc is deleted.
-            setUser(null); 
+            setUser(null);
           }
-          // We are done with the initial auth loading.
-          setLoading(false);
+          // This is the key change: only set loading to false once.
+          // Subsequent snapshots will update the user but not trigger a global loading state.
+          if (loading) {
+            setLoading(false);
+          }
         });
-        return () => unsubscribeFirestore(); // Unsubscribe from Firestore when auth state changes
+        
+        return () => unsubscribeFirestore();
       } else {
-        // User is signed out
         setUser(null);
         setLoading(false);
       }
     });
 
-    return () => unsubscribe(); // Unsubscribe from auth state changes on cleanup
-  }, []);
+    return () => unsubscribe();
+  }, [loading]); // Added loading to dependency array
   
   const createFirestoreUser = async (firebaseUser: FirebaseUser, role: 'customer' | 'barber' | 'admin', displayName?: string) => {
       const userRef = doc(db, "users", firebaseUser.uid);
