@@ -11,10 +11,14 @@ import {
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Search } from "lucide-react";
+import { PlusCircle, Search, LogIn, LogOut } from "lucide-react";
 import { Input } from "../ui/input";
+import { useAuth } from "@/hooks/use-auth";
+import Link from "next/link";
 
 export default function AppHeader() {
+  const { user, logout } = useAuth();
+
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background/95 px-4 backdrop-blur sm:px-6 lg:px-8">
       <SidebarTrigger className="md:hidden" />
@@ -29,29 +33,43 @@ export default function AppHeader() {
       </div>
 
       <div className="flex items-center gap-4">
-        <Button size="sm" className="gap-2">
-          <PlusCircle className="h-4 w-4" />
-          <span className="hidden sm:inline">New Appointment</span>
-        </Button>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-              <Avatar className="h-10 w-10">
-                <AvatarImage data-ai-hint="person" src="https://placehold.co/100x100.png" alt="@user" />
-                <AvatarFallback>U</AvatarFallback>
-              </Avatar>
+        {user ? (
+          <>
+            <Button size="sm" className="gap-2">
+              <PlusCircle className="h-4 w-4" />
+              <span className="hidden sm:inline">New Appointment</span>
             </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>My Account</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem>Profile</DropdownMenuItem>
-            <DropdownMenuItem>Billing</DropdownMenuItem>
-            <DropdownMenuItem>Settings</DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem>Log out</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+                  <Avatar className="h-10 w-10">
+                    <AvatarImage data-ai-hint="person" src={user.photoURL || "https://placehold.co/100x100.png"} alt={user.displayName || "User"} />
+                    <AvatarFallback>{user.displayName?.charAt(0) || 'U'}</AvatarFallback>
+                  </Avatar>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem>Profile</DropdownMenuItem>
+                <DropdownMenuItem>Billing</DropdownMenuItem>
+                <DropdownMenuItem>Settings</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={logout}>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>Log out</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </>
+        ) : (
+          <Button asChild variant="outline" size="sm">
+            <Link href="/login">
+              <LogIn className="mr-2 h-4 w-4" />
+              Login
+            </Link>
+          </Button>
+        )}
       </div>
     </header>
   );

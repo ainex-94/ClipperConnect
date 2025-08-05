@@ -19,8 +19,11 @@ import {
   Settings,
   Scissors,
   LogOut,
+  LogIn,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
+import { useAuth } from "@/hooks/use-auth";
+import { Button } from "../ui/button";
 
 const menuItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -32,6 +35,7 @@ const menuItems = [
 
 export default function AppSidebar() {
   const pathname = usePathname();
+  const { user, logout } = useAuth();
 
   return (
     <Sidebar className="border-r">
@@ -62,19 +66,28 @@ export default function AppSidebar() {
         </SidebarMenu>
       </SidebarContent>
       <SidebarFooter>
-        <div className="flex items-center gap-3">
+        {user ? (
+          <div className="flex items-center gap-3">
             <Avatar className="h-10 w-10">
-              <AvatarImage data-ai-hint="person" src="https://placehold.co/100x100.png" alt="User" />
-              <AvatarFallback>U</AvatarFallback>
+              <AvatarImage data-ai-hint="person" src={user.photoURL || 'https://placehold.co/100x100.png'} alt={user.displayName || 'User'} />
+              <AvatarFallback>{user.displayName?.charAt(0) || 'U'}</AvatarFallback>
             </Avatar>
             <div className="flex-1">
-              <p className="text-sm font-semibold">Admin User</p>
-              <p className="text-xs text-muted-foreground">admin@clipper.co</p>
+              <p className="text-sm font-semibold">{user.displayName || "User"}</p>
+              <p className="text-xs text-muted-foreground">{user.email}</p>
             </div>
-            <button className="text-muted-foreground hover:text-foreground">
+            <button onClick={logout} className="text-muted-foreground hover:text-foreground">
               <LogOut className="h-5 w-5" />
             </button>
-        </div>
+          </div>
+        ) : (
+          <Button asChild variant="outline" className="w-full">
+             <Link href="/login">
+                <LogIn className="mr-2 h-4 w-4"/>
+                <span>Login</span>
+            </Link>
+          </Button>
+        )}
       </SidebarFooter>
     </Sidebar>
   );
