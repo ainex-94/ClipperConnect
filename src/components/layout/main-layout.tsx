@@ -5,8 +5,9 @@ import AppSidebar from "@/components/layout/sidebar";
 import AppHeader from "@/components/layout/header";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { useAuth } from "@/hooks/use-auth";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
+import { useEffect } from "react";
 
 const PUBLIC_ROUTES = ['/login', '/register'];
 
@@ -15,19 +16,39 @@ export default function MainLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const pathname = usePathname();
-  const isPublicRoute = PUBLIC_ROUTES.includes(pathname);
+  const router = useRouter();
 
-  // For debugging, we are temporarily disabling all session checks and redirects.
-  // This will render the content based on whether it's a "public" page style or the main app layout.
+  useEffect(() => {
+    if (!loading && !user && !PUBLIC_ROUTES.includes(pathname)) {
+      router.push('/login');
+    }
+  }, [user, loading, pathname, router]);
 
-  if (isPublicRoute) {
-      // Render public routes like login/register without the main layout
-      return <>{children}</>;
+
+  if (loading) {
+      return (
+          <div className="flex h-screen w-full items-center justify-center">
+              <Loader2 className="h-8 w-8 animate-spin" />
+          </div>
+      )
   }
 
-  // Render all other routes with the main app layout (sidebar, header, etc.)
+  if (PUBLIC_ROUTES.includes(pathname)) {
+      return <>{children}</>;
+  }
+  
+  if (!user) {
+    // This state can happen briefly during the redirect from the useEffect.
+    // Showing a loader here prevents trying to render the main layout without a user.
+    return (
+        <div className="flex h-screen w-full items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+    )
+  }
+
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full">

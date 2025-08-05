@@ -1,32 +1,59 @@
+
 // src/app/page.tsx
+'use client';
+
+import { useState, useEffect } from 'react';
 import { RescheduleTool } from "@/components/reschedule-tool";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { getCurrentUser } from "@/lib/firebase/auth-actions";
+import { useAuth } from "@/hooks/use-auth";
 import { getAppointmentsForUser, Appointment } from "@/lib/firebase/firestore";
-import { redirect } from "next/navigation";
 import { format } from 'date-fns';
+import { Loader2 } from 'lucide-react';
 
-export default async function DashboardPage() {
-  const user = await getCurrentUser();
+export default function DashboardPage() {
+  const { user } = useAuth();
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [upcomingAppointments, setUpcomingAppointments] = useState<Appointment[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  if (!user) {
-    redirect('/login');
+  useEffect(() => {
+    if (user) {
+      const fetchAppointments = async () => {
+        setLoading(true);
+        const userAppointments = await getAppointmentsForUser(user.uid, user.role);
+        setAppointments(userAppointments);
+
+        const today = new Date();
+        const upcoming = userAppointments
+          .filter(app => {
+            if (!app.dateTime) return false;
+            const appDate = new Date(app.dateTime);
+            return (
+              appDate.getDate() === today.getDate() &&
+              appDate.getMonth() === today.getMonth() &&
+              appDate.getFullYear() === today.getFullYear() &&
+              app.status === 'Confirmed'
+            );
+          })
+          .sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
+        
+        setUpcomingAppointments(upcoming);
+        setLoading(false);
+      };
+
+      fetchAppointments();
+    }
+  }, [user]);
+
+  if (loading) {
+    return <div className="flex items-center justify-center h-full"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   }
-
-  const appointments: Appointment[] = await getAppointmentsForUser(user.uid, user.role);
-
-  // Filter to show only today's appointments for the "Upcoming" card
-  const today = new Date();
-  const upcomingAppointments = appointments.filter(app => {
-    if (!app.dateTime) return false;
-    const appDate = new Date(app.dateTime);
-    return appDate.getDate() === today.getDate() &&
-           appDate.getMonth() === today.getMonth() &&
-           appDate.getFullYear() === today.getFullYear() &&
-           app.status === 'Confirmed';
-  }).sort((a,b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
+  
+  if (!user) {
+    return null; 
+  }
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 fade-in-animation">
