@@ -112,13 +112,20 @@ export async function getAppointmentsForUser(userId: string, userRole: UserProfi
     if (userRole === 'admin') {
         q = query(collection(db, "appointments"), orderBy('dateTime', 'desc'));
     } else if (userRole === 'barber') {
-        q = query(collection(db, "appointments"), where('barberId', '==', userId), orderBy('dateTime', 'desc'));
+        q = query(collection(db, "appointments"), where('barberId', '==', userId));
     } else { // customer
-        q = query(collection(db, "appointments"), where('customerId', '==', userId), orderBy('dateTime', 'desc'));
+        q = query(collection(db, "appointments"), where('customerId', '==', userId));
     }
 
     const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => safeJsonParse({ id: doc.id, ...doc.data() }));
+    const appointments = querySnapshot.docs.map(doc => safeJsonParse({ id: doc.id, ...doc.data() })) as Appointment[];
+
+    // Sort client-side for non-admin roles to avoid composite index requirement
+    if (userRole !== 'admin') {
+      appointments.sort((a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime());
+    }
+    
+    return appointments;
 }
 
 // CHAT FUNCTIONS
