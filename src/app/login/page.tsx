@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { Scissors } from "lucide-react";
+import Link from "next/link";
 
 // Inline SVG for Google Icon
 const GoogleIcon = () => (
@@ -39,13 +40,19 @@ export default function LoginPage() {
         <CardContent>
           <div className="flex flex-col gap-4">
             <Button
-              onClick={loginWithGoogle}
+              onClick={() => loginWithGoogle()}
               disabled={loading}
               className="w-full"
             >
               <GoogleIcon />
               {loading ? "Signing In..." : "Sign in with Google"}
             </Button>
+            <p className="text-center text-sm text-muted-foreground">
+                Don't have an account?{' '}
+                <Link href="/register" className="font-semibold text-primary hover:underline">
+                    Sign up
+                </Link>
+            </p>
           </div>
         </CardContent>
       </Card>

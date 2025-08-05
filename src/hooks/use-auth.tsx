@@ -10,14 +10,14 @@ import {
 } from "react";
 import { onAuthStateChanged, signInWithPopup, signOut, User } from "firebase/auth";
 import { auth, googleProvider, db } from "@/lib/firebase/firebase";
-import { doc, setDoc, getDoc } from "firebase/firestore";
+import { doc, setDoc, getDoc, updateDoc } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import { useToast } from "./use-toast";
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  loginWithGoogle: () => void;
+  loginWithGoogle: (role?: 'customer' | 'barber') => void;
   logout: () => void;
 }
 
@@ -36,13 +36,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const userRef = doc(db, "users", user.uid);
         const docSnap = await getDoc(userRef);
         if (!docSnap.exists()) {
-          // If not, create a new document
+          // If not, create a new document.
+          // This case might happen if they signed up before roles were a thing.
           await setDoc(userRef, {
             uid: user.uid,
             email: user.email,
             displayName: user.displayName,
             photoURL: user.photoURL,
             createdAt: new Date(),
+            role: 'customer', // Default role
           });
         }
         setUser(user);
@@ -55,20 +57,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => unsubscribe();
   }, []);
 
-  const loginWithGoogle = async () => {
+  const loginWithGoogle = async (role?: 'customer' | 'barber') => {
     setLoading(true);
     try {
-      await signInWithPopup(auth, googleProvider);
+      const result = await signInWithPopup(auth, googleProvider);
+      const user = result.user;
+
+      const userRef = doc(db, "users", user.uid);
+      const docSnap = await getDoc(userRef);
+
+      if (!docSnap.exists()) {
+        await setDoc(userRef, {
+          uid: user.uid,
+          email: user.email,
+          displayName: user.displayName,
+          photoURL: user.photoURL,
+          createdAt: new Date(),
+          role: role || 'customer',
+        });
+        toast({
+            title: "Registration Successful",
+            description: "Welcome to ClipperConnect!",
+        });
+      } else {
+        if (role && docSnap.data().role !== role) {
+             await updateDoc(userRef, { role: role });
+        }
+        toast({
+            title: "Login Successful",
+            description: "Welcome back!",
+        });
+      }
       router.push("/");
-       toast({
-        title: "Login Successful",
-        description: "Welcome back!",
-      });
     } catch (error) {
       console.error("Error during Google sign-in:", error);
       toast({
         variant: "destructive",
-        title: "Login Failed",
+        title: "Sign-in Failed",
         description: "Could not sign you in with Google. Please try again.",
       });
       setLoading(false);

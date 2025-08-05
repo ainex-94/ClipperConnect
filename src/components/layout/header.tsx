@@ -16,28 +16,9 @@ import { Input } from "../ui/input";
 import { useAuth } from "@/hooks/use-auth";
 import Link from "next/link";
 import { NewAppointmentDialog } from "../new-appointment-dialog";
-import { getCollection } from "@/lib/firebase/firestore";
-import { useEffect, useState } from "react";
-
-interface User {
-  id: string;
-  displayName: string;
-}
 
 export default function AppHeader() {
   const { user, logout } = useAuth();
-  const [users, setUsers] = useState<User[]>([]);
-
-  useEffect(() => {
-    async function fetchUsers() {
-      if (user) {
-        const fetchedUsers: User[] = await getCollection("users");
-        setUsers(fetchedUsers);
-      }
-    }
-    fetchUsers();
-  }, [user]);
-
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background/95 px-4 backdrop-blur sm:px-6 lg:px-8">
@@ -55,7 +36,7 @@ export default function AppHeader() {
       <div className="flex items-center gap-4">
         {user ? (
           <>
-            <NewAppointmentDialog users={users} />
+            <NewAppointmentDialog />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-10 w-10 rounded-full">

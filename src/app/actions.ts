@@ -5,6 +5,7 @@ import {
   type SuggestRescheduleOptionsInput,
 } from "@/ai/flows/suggest-reschedule-options";
 import { db } from "@/lib/firebase/firebase";
+import { getDocument } from "@/lib/firebase/firestore";
 import { addDoc, collection } from "firebase/firestore";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -65,23 +66,26 @@ export async function addAppointment(values: z.infer<typeof appointmentFormSchem
         };
     }
     
-    // We need to fetch the names based on the IDs.
-    // This is a simplified example. In a real app, you might want to denormalize this data
-    // or fetch it more efficiently. For this case, we'll just store the IDs and names.
     const { customerId, barberId, service, dateTime } = validatedFields.data;
     
-    // This is a placeholder for fetching user names.
-    // In a real app, you should fetch this from your database.
-    const customerName = "Customer Name"; // Replace with actual lookup
-    const barberName = "Barber Name"; // Replace with actual lookup
+    // Fetch customer and barber names from Firestore
+    const customerDoc = await getDocument("users", customerId);
+    const barberDoc = await getDocument("users", barberId);
+
+    if (!customerDoc || !barberDoc) {
+        return { error: "Invalid customer or barber selected." };
+    }
+
+    const customerName = customerDoc.displayName;
+    const barberName = barberDoc.displayName;
 
 
     try {
         await addDoc(collection(db, "appointments"), {
             ...validatedFields.data,
             // Storing names for easier display, but IDs are the source of truth
-            customerName, // You'd fetch this based on customerId
-            barberName, // You'd fetch this based on barberId
+            customerName,
+            barberName,
             status: 'Confirmed'
         });
 

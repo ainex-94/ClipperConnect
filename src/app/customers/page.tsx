@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { getCollection } from "@/lib/firebase/firestore";
+import { getCustomers } from "@/lib/firebase/firestore";
 import { Search } from "lucide-react";
 import { format } from 'date-fns';
 
@@ -19,7 +19,7 @@ interface Customer {
 }
 
 export default async function CustomersPage() {
-    const customers: Customer[] = await getCollection("users");
+    const customers: Customer[] = await getCustomers();
 
   return (
     <Card>
@@ -68,6 +68,13 @@ export default async function CustomersPage() {
                 <TableCell className="text-right">{format(new Date(customer.createdAt), 'PPP')}</TableCell>
               </TableRow>
             ))}
+             {customers.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={4} className="text-center h-24">
+                  No customers found.
+                </TableCell>
+              </TableRow>
+            )}
           </TableBody>
         </Table>
       </CardContent>

@@ -2,7 +2,7 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { getCollection } from "@/lib/firebase/firestore";
+import { getBarbers } from "@/lib/firebase/firestore";
 import { Phone, Mail, Star } from "lucide-react";
 
 interface Barber {
@@ -16,7 +16,7 @@ interface Barber {
 }
 
 export default async function BarbersPage() {
-  const barbers: Barber[] = await getCollection("users");
+  const barbers: Barber[] = await getBarbers();
 
   return (
     <div>
@@ -59,6 +59,9 @@ export default async function BarbersPage() {
             </CardFooter>
           </Card>
         ))}
+        {barbers.length === 0 && (
+          <p className="text-muted-foreground col-span-full text-center">No barbers have registered yet.</p>
+        )}
       </div>
     </div>
   );

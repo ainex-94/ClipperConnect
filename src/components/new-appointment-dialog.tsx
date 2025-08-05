@@ -1,7 +1,7 @@
 // src/components/new-appointment-dialog.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -34,6 +34,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PlusCircle, Loader2 } from "lucide-react";
+import { getCustomers, getBarbers } from "@/lib/firebase/firestore";
 
 const formSchema = z.object({
   customerId: z.string({ required_error: "Please select a customer." }),
@@ -46,14 +47,27 @@ interface User {
   id: string;
   displayName: string;
 }
-interface NewAppointmentDialogProps {
-  users: User[];
-}
 
-export function NewAppointmentDialog({ users }: NewAppointmentDialogProps) {
+export function NewAppointmentDialog() {
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [customers, setCustomers] = useState<User[]>([]);
+  const [barbers, setBarbers] = useState<User[]>([]);
+
+  useEffect(() => {
+    if (open) {
+      const fetchUsers = async () => {
+        const [customerData, barberData] = await Promise.all([
+          getCustomers(),
+          getBarbers(),
+        ]);
+        setCustomers(customerData);
+        setBarbers(barberData);
+      };
+      fetchUsers();
+    }
+  }, [open]);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -83,10 +97,6 @@ export function NewAppointmentDialog({ users }: NewAppointmentDialogProps) {
       form.reset();
     }
   }
-
-  // For simplicity, we assume all users can be customers and barbers.
-  const customers = users;
-  const barbers = users;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>

@@ -20,6 +20,21 @@ export async function getCollection(collectionName: string) {
     return querySnapshot.docs.map(doc => safeJsonParse({ id: doc.id, ...doc.data() }));
 }
 
+export async function getUsersWithRole(role: 'customer' | 'barber') {
+    const q = query(collection(db, "users"), where("role", "==", role));
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => safeJsonParse({ id: doc.id, ...doc.data() }));
+}
+
+export async function getCustomers() {
+    return getUsersWithRole('customer');
+}
+
+export async function getBarbers() {
+    return getUsersWithRole('barber');
+}
+
+
 export async function getDocument(collectionName: string, docId: string) {
     const docRef = doc(db, collectionName, docId);
     const docSnap = await getDoc(docRef);

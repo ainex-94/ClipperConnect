@@ -16,14 +16,8 @@ interface Appointment {
   status: 'Confirmed' | 'Pending' | 'Completed' | 'Cancelled';
 }
 
-interface User {
-  id: string;
-  displayName: string;
-}
-
 export default async function AppointmentsPage() {
   const appointments: Appointment[] = await getCollection("appointments");
-  const users: User[] = await getCollection("users");
 
   const getStatusVariant = (status: string) => {
     switch (status) {
@@ -48,7 +42,7 @@ export default async function AppointmentsPage() {
             Manage all your upcoming and past appointments.
           </CardDescription>
         </div>
-        <NewAppointmentDialog users={users} />
+        <NewAppointmentDialog />
       </CardHeader>
       <CardContent>
         <Table>
