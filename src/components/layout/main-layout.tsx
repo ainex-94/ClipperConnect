@@ -23,22 +23,24 @@ export default function MainLayout({
   const isPublicRoute = PUBLIC_ROUTES.includes(pathname);
 
   useEffect(() => {
+    // Don't do anything while auth state is loading
     if (loading) {
-      return; // Wait until loading is complete before doing any redirects
+      return;
     }
 
-    // If we have a user and they are on a public route (e.g., /login), redirect to home
+    // If user is logged in and tries to access a public route, redirect to dashboard
     if (user && isPublicRoute) {
       router.push('/');
     }
 
-    // If we don't have a user and they are on a protected route, redirect to login
+    // If user is not logged in and tries to access a protected route, redirect to login
     if (!user && !isPublicRoute) {
       router.push('/login');
     }
   }, [user, loading, router, isPublicRoute, pathname]);
   
-  // While authentication is in progress, show a loader.
+  // While authentication is in progress, show a global loader and nothing else.
+  // This is the key to preventing the render loop.
   if (loading) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
@@ -47,13 +49,13 @@ export default function MainLayout({
     );
   }
 
-  // If on a public route, just render the children (Login/Register page)
-  if (isPublicRoute) {
+  // If we're on a public route and not logged in, render the public page (login/register).
+  if (!user && isPublicRoute) {
     return <div className="min-h-screen w-full">{children}</div>;
   }
   
   // If we have a user and are on a protected route, show the main application layout.
-  if (user) {
+  if (user && !isPublicRoute) {
     return (
       <SidebarProvider>
         <div className="flex min-h-screen w-full">
@@ -67,7 +69,7 @@ export default function MainLayout({
     );
   }
 
-  // If no user and not a public route, show loader while redirecting
+  // In any other case (like waiting for redirect), show a loader.
   return (
     <div className="flex h-screen w-full items-center justify-center bg-background">
       <Loader2 className="h-8 w-8 animate-spin" />
