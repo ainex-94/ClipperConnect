@@ -1,23 +1,29 @@
 // src/app/appointments/page.tsx
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getCollection } from "@/lib/firebase/firestore";
 import { MoreHorizontal } from "lucide-react";
 import { format } from 'date-fns';
+import { NewAppointmentDialog } from "@/components/new-appointment-dialog";
 
 interface Appointment {
   id: string;
-  customer: string;
-  barber: string;
+  customerName: string;
+  barberName: string;
   service: string;
   dateTime: string;
   status: 'Confirmed' | 'Pending' | 'Completed' | 'Cancelled';
 }
 
+interface User {
+  id: string;
+  displayName: string;
+}
+
 export default async function AppointmentsPage() {
   const appointments: Appointment[] = await getCollection("appointments");
+  const users: User[] = await getCollection("users");
 
   const getStatusVariant = (status: string) => {
     switch (status) {
@@ -35,11 +41,14 @@ export default async function AppointmentsPage() {
   };
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Appointments</CardTitle>
-        <CardDescription>
-          Manage all your upcoming and past appointments.
-        </CardDescription>
+       <CardHeader className="flex flex-row items-center justify-between">
+        <div>
+          <CardTitle>Appointments</CardTitle>
+          <CardDescription>
+            Manage all your upcoming and past appointments.
+          </CardDescription>
+        </div>
+        <NewAppointmentDialog users={users} />
       </CardHeader>
       <CardContent>
         <Table>
@@ -56,20 +65,25 @@ export default async function AppointmentsPage() {
           <TableBody>
             {appointments.map((appointment) => (
               <TableRow key={appointment.id}>
-                <TableCell className="font-medium">{appointment.customer}</TableCell>
-                <TableCell>{appointment.barber}</TableCell>
+                <TableCell className="font-medium">{appointment.customerName}</TableCell>
+                <TableCell>{appointment.barberName}</TableCell>
                 <TableCell>{appointment.service}</TableCell>
                 <TableCell>{format(new Date(appointment.dateTime), "PPP p")}</TableCell>
                 <TableCell>
                   <Badge variant={getStatusVariant(appointment.status) as any}>{appointment.status}</Badge>
                 </TableCell>
                 <TableCell>
-                  <Button variant="ghost" size="icon">
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
+                  {/* Dropdown can be added here for actions like 'Edit', 'Cancel' */}
                 </TableCell>
               </TableRow>
             ))}
+             {appointments.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={6} className="text-center h-24">
+                  No appointments found.
+                </TableCell>
+              </TableRow>
+            )}
           </TableBody>
         </Table>
       </CardContent>
