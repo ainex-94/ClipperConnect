@@ -31,9 +31,15 @@ export default function MainLayout({
     if (!user && !isPublicRoute) {
       router.push('/login');
     }
+    
+    // If user is logged in and tries to access a public route (like login), redirect to home
+    if (user && isPublicRoute) {
+      router.push('/');
+    }
+
   }, [user, loading, router, isPublicRoute, pathname]);
   
-  // 1. While authentication is in progress, show a global loader and nothing else.
+  // While authentication is in progress, show a global loader.
   if (loading) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
@@ -42,14 +48,12 @@ export default function MainLayout({
     );
   }
 
-  // 2. If we are on a public route, render the page content.
-  // This allows unauthenticated users to see login/register,
-  // and authenticated users will be redirected away by their respective pages.
-  if (isPublicRoute) {
+  // If we are on a public route and not logged in yet, render the page.
+  if (!user && isPublicRoute) {
     return <>{children}</>;
   }
 
-  // 3. If we have a user and are on a protected route, show the main application layout.
+  // If we have a user and are on a protected route, show the main application layout.
   if (user && !isPublicRoute) {
     return (
       <SidebarProvider>
@@ -64,7 +68,7 @@ export default function MainLayout({
     );
   }
 
-  // 4. In any other case (like an unauthenticated user on a protected route, waiting for redirect), show a loader.
+  // In any other case (like waiting for redirect to kick in), show a loader.
   return (
     <div className="flex h-screen w-full items-center justify-center bg-background">
       <Loader2 className="h-8 w-8 animate-spin" />
