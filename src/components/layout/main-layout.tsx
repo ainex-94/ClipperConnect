@@ -47,13 +47,13 @@ export default function MainLayout({
     );
   }
 
-  // If on a public route and no user, show the public page (login/register).
-  if (isPublicRoute && !user) {
+  // If on a public route, just render the children (Login/Register page)
+  if (isPublicRoute) {
     return <div className="min-h-screen w-full">{children}</div>;
   }
   
   // If we have a user and are on a protected route, show the main application layout.
-  if (user && !isPublicRoute) {
+  if (user) {
     return (
       <SidebarProvider>
         <div className="flex min-h-screen w-full">
@@ -67,7 +67,7 @@ export default function MainLayout({
     );
   }
 
-  // In any other case (like redirecting), show a loader to prevent screen flicker.
+  // If no user and not a public route, show loader while redirecting
   return (
     <div className="flex h-screen w-full items-center justify-center bg-background">
       <Loader2 className="h-8 w-8 animate-spin" />

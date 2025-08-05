@@ -4,7 +4,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { getCurrentUser } from "@/lib/firebase/auth-actions";
-import { getAppointmentsForUser } from "@/lib/firebase/firestore";
+import { getAppointmentsForUser, Appointment } from "@/lib/firebase/firestore";
 import { redirect } from "next/navigation";
 import { format } from 'date-fns';
 
@@ -15,11 +15,12 @@ export default async function DashboardPage() {
     redirect('/login');
   }
 
-  const appointments = await getAppointmentsForUser(user.uid, user.role);
+  const appointments: Appointment[] = await getAppointmentsForUser(user.uid, user.role);
 
   // Filter to show only today's appointments for the "Upcoming" card
   const today = new Date();
   const upcomingAppointments = appointments.filter(app => {
+    if (!app.dateTime) return false;
     const appDate = new Date(app.dateTime);
     return appDate.getDate() === today.getDate() &&
            appDate.getMonth() === today.getMonth() &&
@@ -54,16 +55,19 @@ export default async function DashboardPage() {
           <CardContent>
             <div className="space-y-4">
               {upcomingAppointments.length > 0 ? (
-                upcomingAppointments.map((appointment, index) => (
+                upcomingAppointments.map((appointment, index) => {
+                  const otherPersonName = user.role === 'barber' ? appointment.customerName : appointment.barberName;
+                  const otherPersonPhoto = user.role === 'barber' ? appointment.customerPhotoURL : appointment.barberPhotoURL;
+                  
+                  return (
                   <div key={appointment.id}>
                     <div className="flex items-center gap-4">
                       <Avatar className="h-10 w-10">
-                        {/* Show the other person's avatar */}
-                        <AvatarImage data-ai-hint="person portrait" src={user.role === 'barber' ? (appointment as any).customerPhotoURL : (appointment as any).barberPhotoURL} alt={user.role === 'barber' ? appointment.customerName : appointment.barberName} />
-                        <AvatarFallback>{(user.role === 'barber' ? appointment.customerName : appointment.barberName)?.charAt(0)}</AvatarFallback>
+                        <AvatarImage data-ai-hint="person portrait" src={otherPersonPhoto} alt={otherPersonName} />
+                        <AvatarFallback>{otherPersonName?.charAt(0)}</AvatarFallback>
                       </Avatar>
                       <div className="flex-1">
-                        <p className="font-medium">{user.role === 'barber' ? appointment.customerName : appointment.barberName}</p>
+                        <p className="font-medium">{otherPersonName}</p>
                         <p className="text-sm text-muted-foreground">{appointment.service}</p>
                       </div>
                       <div className="text-right">
@@ -72,7 +76,7 @@ export default async function DashboardPage() {
                     </div>
                     {index < upcomingAppointments.length - 1 && <Separator className="mt-4" />}
                   </div>
-                ))
+                )})
               ) : (
                 <p className="text-muted-foreground text-center py-8">No upcoming appointments today.</p>
               )}
