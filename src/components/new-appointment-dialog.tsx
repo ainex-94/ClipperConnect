@@ -40,7 +40,7 @@ import { getCustomers, getBarbers, UserProfile } from "@/lib/firebase/firestore"
 const formSchema = z.object({
   customerId: z.string().min(1, "Please select a customer."),
   barberId: z.string().min(1, "Please select a barber."),
-  service: z.string().min(2, "Service must be at least 2 characters.").max(50),
+  service: z.string().min(1, "Please select a service."),
   dateTime: z.string().min(1, "Please select a date and time."),
 });
 
@@ -48,6 +48,16 @@ interface User {
   id: string;
   displayName: string;
 }
+
+const services = [
+  "Haircut",
+  "Beard Trim",
+  "Haircut & Beard Trim",
+  "Shave",
+  "Kids Haircut",
+  "Fade",
+  "Hair Coloring"
+];
 
 export function NewAppointmentDialog() {
   const { toast } = useToast();
@@ -254,9 +264,20 @@ export function NewAppointmentDialog() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Service</FormLabel>
-                  <FormControl>
-                    <Input placeholder="e.g., Haircut" {...field} />
-                  </FormControl>
+                   <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a service" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {services.map((service) => (
+                          <SelectItem key={service} value={service}>
+                            {service}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   <FormMessage />
                 </FormItem>
               )}
