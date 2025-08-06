@@ -7,7 +7,6 @@ import { MoreHorizontal } from "lucide-react";
 import { format } from 'date-fns';
 import { NewAppointmentDialog } from "@/components/new-appointment-dialog";
 import { getCurrentUser } from "@/lib/firebase/auth-actions";
-import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { StartChatButton } from "@/components/start-chat-button";
@@ -26,9 +25,9 @@ interface Appointment {
 export default async function AppointmentsPage() {
   const user = await getCurrentUser();
   
-  // This check is necessary to satisfy TypeScript, as getCurrentUser can return null.
-  // The main layout already handles the redirect for unauthenticated users.
   if (!user) {
+    // This case should be handled by the main layout, but it's a good practice
+    // to have a fallback to prevent rendering errors.
     return null;
   }
 

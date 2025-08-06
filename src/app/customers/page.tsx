@@ -8,7 +8,6 @@ import { getCurrentUser } from "@/lib/firebase/auth-actions";
 import { getCustomers } from "@/lib/firebase/firestore";
 import { Search, MoreHorizontal } from "lucide-react";
 import { format } from 'date-fns';
-import { redirect } from "next/navigation";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { StartChatButton } from "@/components/start-chat-button";
 
@@ -24,13 +23,11 @@ interface Customer {
 
 export default async function CustomersPage() {
     const user = await getCurrentUser();
+    
     if (!user) {
       return null;
     }
 
-    if (user.role === 'customer') {
-      redirect('/');
-    }
     const customers: Customer[] = await getCustomers();
 
   return (
