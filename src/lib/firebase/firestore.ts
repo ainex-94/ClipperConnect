@@ -1,5 +1,4 @@
 
-
 'use server';
 
 import { collection, getDocs, getDoc, doc, query, where, DocumentData, Timestamp, serverTimestamp, addDoc, setDoc, orderBy, limit, updateDoc, or } from 'firebase/firestore';
@@ -59,6 +58,8 @@ export interface Appointment {
   service: string;
   dateTime: string;
   status: 'Confirmed' | 'Pending' | 'Completed' | 'Cancelled';
+  price?: number;
+  paymentStatus?: 'Paid' | 'Unpaid';
 }
 
 
@@ -124,6 +125,33 @@ export async function getAppointmentsForUser(userId: string): Promise<Appointmen
     appointments.sort((a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime());
     
     return appointments;
+}
+
+export async function getAllAppointments(barberId?: string): Promise<Appointment[]> {
+    let q;
+    if (barberId) {
+        q = query(collection(db, "appointments"), where('barberId', '==', barberId));
+    } else {
+        q = query(collection(db, "appointments"));
+    }
+    
+    const querySnapshot = await getDocs(q);
+    const appointments = querySnapshot.docs.map(doc => safeJsonParse({ id: doc.id, ...doc.data() })) as Appointment[];
+    
+    appointments.sort((a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime());
+    
+    return appointments;
+}
+
+export async function updateAppointmentStatus(appointmentId: string, paymentStatus: 'Paid' | 'Unpaid') {
+  try {
+    const appointmentRef = doc(db, "appointments", appointmentId);
+    await updateDoc(appointmentRef, { paymentStatus });
+    return { success: true };
+  } catch (error) {
+    console.error("Error updating appointment status:", error);
+    return { success: false, error: "Failed to update payment status." };
+  }
 }
 
 // CHAT FUNCTIONS

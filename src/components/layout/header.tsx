@@ -50,7 +50,7 @@ export default function AppHeader() {
                 <DropdownMenuLabel>My Account</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem>Profile</DropdownMenuItem>
-                <DropdownMenuItem>Billing</DropdownMenuItem>
+                <Link href="/billing"><DropdownMenuItem>Billing</DropdownMenuItem></Link>
                 <Link href="/settings"><DropdownMenuItem>Settings</DropdownMenuItem></Link>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={logout}>

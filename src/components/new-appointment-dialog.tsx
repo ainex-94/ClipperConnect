@@ -43,6 +43,7 @@ const formSchema = z.object({
   barberId: z.string().min(1, "Please select a barber."),
   service: z.string().min(1, "Please select a service."),
   dateTime: z.string().min(1, "Please select a date and time."),
+  price: z.number(), // Price will be set programmatically
 });
 
 interface User {
@@ -71,7 +72,6 @@ export function NewAppointmentDialog() {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      service: "Haircut",
       dateTime: new Date(new Date().getTime() + 60 * 60 * 1000).toISOString().substring(0, 16), // 1 hour from now
     },
   });
@@ -79,10 +79,12 @@ export function NewAppointmentDialog() {
   useEffect(() => {
     // Reset form with role-specific defaults whenever the dialog opens or user changes
     if (open && user) {
+      const defaultService = services[0];
       form.reset({
         customerId: user.role === 'customer' ? user.uid : '',
         barberId: user.role === 'barber' ? user.uid : '',
-        service: "Haircut",
+        service: defaultService.name,
+        price: defaultService.price,
         dateTime: new Date(new Date().getTime() + 60 * 60 * 1000).toISOString().substring(0, 16),
       });
     }
@@ -265,7 +267,16 @@ export function NewAppointmentDialog() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Service</FormLabel>
-                   <Select onValueChange={field.onChange} defaultValue={field.value}>
+                   <Select 
+                      onValueChange={(value) => {
+                        const selectedService = services.find(s => s.name === value);
+                        if (selectedService) {
+                          field.onChange(value);
+                          form.setValue('price', selectedService.price);
+                        }
+                      }} 
+                      defaultValue={field.value}
+                    >
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select a service" />
@@ -296,6 +307,9 @@ export function NewAppointmentDialog() {
                 </FormItem>
               )}
             />
+             {/* Hidden price field to submit with form */}
+             <FormField control={form.control} name="price" render={({ field }) => <Input type="hidden" {...field} />} />
+
             <DialogFooter>
               <Button type="submit" disabled={isLoading}>
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

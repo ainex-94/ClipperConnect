@@ -56,6 +56,7 @@ const appointmentFormSchema = z.object({
   barberId: z.string().min(1, "Please select a barber."),
   service: z.string().min(2, "Service must be at least 2 characters.").max(50),
   dateTime: z.string().min(1, "Please select a date and time."),
+  price: z.number().min(0, "Price cannot be negative."),
 });
 
 export async function addAppointment(values: z.infer<typeof appointmentFormSchema>) {
@@ -67,7 +68,7 @@ export async function addAppointment(values: z.infer<typeof appointmentFormSchem
         };
     }
     
-    const { customerId, barberId, service, dateTime } = validatedFields.data;
+    const { customerId, barberId, service, dateTime, price } = validatedFields.data;
     
     const customerDoc = await getDocument("users", customerId);
     const barberDoc = await getDocument("users", barberId);
@@ -89,7 +90,8 @@ export async function addAppointment(values: z.infer<typeof appointmentFormSchem
             customerPhotoURL,
             barberName,
             barberPhotoURL,
-            status: 'Confirmed'
+            status: 'Confirmed',
+            paymentStatus: 'Unpaid'
         });
 
         await getOrCreateChat(customerId, barberId);
@@ -97,6 +99,7 @@ export async function addAppointment(values: z.infer<typeof appointmentFormSchem
         revalidatePath('/appointments');
         revalidatePath('/'); // For dashboard
         revalidatePath('/chat');
+        revalidatePath('/billing');
         return { success: "Appointment created successfully!" };
     } catch (error) {
         console.error("Firestore Error:", error);
