@@ -111,8 +111,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
   
-  const handleAuthSuccess = async (firebaseUser: FirebaseUser) => {
+  const handleAuthSuccess = async (firebaseUser: FirebaseUser, role?: UserProfile['role']) => {
+      // If a role is passed (i.e. during registration), we can make an immediate decision
+      if (role === 'admin') {
+          router.push('/');
+          return;
+      }
+
       const userProfile = await fetchUserProfile(firebaseUser);
+
+      // If we have a full user profile, we can check its status
       if (userProfile && userProfile.role !== 'admin' && userProfile.accountStatus !== 'Approved') {
           // Don't redirect to dashboard, MainLayout will show pending/rejected screen
           toast({
@@ -169,7 +177,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
       
-      await handleAuthSuccess(firebaseUser);
+      await handleAuthSuccess(firebaseUser, role);
   }
 
   const loginWithGoogle = async (role: 'customer' | 'barber' = 'customer') => {
