@@ -7,7 +7,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getAppointmentsForUser, Appointment } from "@/lib/firebase/firestore";
-import { MoreHorizontal, Loader2, Star, Pencil, Play, Square, DollarSign, FileText } from "lucide-react";
+import { MoreHorizontal, Loader2, Star, Pencil, Play, Square, DollarSign, FileText, Wallet } from "lucide-react";
 import { format } from 'date-fns';
 import { NewAppointmentDialog } from "@/components/new-appointment-dialog";
 import { Button } from "@/components/ui/button";
@@ -19,11 +19,14 @@ import { RateAppointmentDialog } from "@/components/rate-appointment-dialog";
 import { EditAppointmentDialog } from "@/components/edit-appointment-dialog";
 import { DataTable } from "@/components/ui/data-table";
 import { type ColumnDef } from "@tanstack/react-table";
+import { payFromWallet } from "../actions";
+import { useToast } from "@/hooks/use-toast";
 
 export default function AppointmentsPage() {
   const { user, loading: authLoading } = useAuth();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
   
   const fetchAppointments = async () => {
     if (user) {
@@ -39,6 +42,18 @@ export default function AppointmentsPage() {
   useEffect(() => {
     fetchAppointments();
   }, [user, authLoading]);
+
+  const handlePayFromWallet = async (appointmentId: string) => {
+    setLoading(true);
+    const result = await payFromWallet({ appointmentId });
+    if (result.success) {
+      toast({ title: 'Success', description: result.success });
+      fetchAppointments();
+    } else {
+      toast({ variant: 'destructive', title: 'Payment Failed', description: result.error });
+      setLoading(false);
+    }
+  };
 
   const getStatusVariant = (status: Appointment['status']) => {
     switch (status) {
@@ -88,6 +103,7 @@ export default function AppointmentsPage() {
         const isBarber = user.role === 'barber';
         const isCustomer = user.role === 'customer';
         const isAdmin = user.role === 'admin';
+        const canPay = isCustomer && appointment.status === 'Completed' && appointment.paymentStatus !== 'Paid';
 
         return (
           <div className="text-right">
@@ -131,6 +147,13 @@ export default function AppointmentsPage() {
                     )}
                     <DropdownMenuItem className="text-destructive">Cancel</DropdownMenuItem>
                   </>
+                )}
+
+                {canPay && (
+                   <DropdownMenuItem onSelect={() => handlePayFromWallet(appointment.id)}>
+                    <Wallet className="mr-2 h-4 w-4" />
+                    Pay from Wallet
+                  </DropdownMenuItem>
                 )}
                 
                 {appointment.status === 'Completed' && (

@@ -56,10 +56,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const refreshUser = useCallback(async () => {
     const firebaseUser = auth.currentUser;
     if (firebaseUser) {
-        setLoading(true);
+        // No need to set loading to true here, to avoid screen flicker on minor updates
         const userProfile = await fetchUserProfile(firebaseUser);
         setUser(userProfile);
-        setLoading(false);
     }
   }, [fetchUserProfile]);
 
@@ -121,6 +120,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             createdAt: new Date().toISOString(),
             role: role,
             coins: 0,
+            walletBalance: 0,
             rating: 0,
             totalRatings: 0,
             address: '',
@@ -179,7 +179,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     try {
         const result = await signInWithEmailAndPassword(auth, email, pass);
-        await createFirestoreUser(result.user, 'customer');
+        // Assuming role is already set, if not, this might need adjustment
+        const userProfile = await fetchUserProfile(result.user);
+        if (!userProfile) {
+            // This is a fallback for users created before the role system
+            await createFirestoreUser(result.user, 'customer');
+        } else {
+            await handleAuthSuccess(result.user);
+        }
     } catch (error: any) {
         console.error("Error during Email/Password sign-in:", error);
         toast({

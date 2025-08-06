@@ -6,8 +6,8 @@ import {
   type SuggestRescheduleOptionsInput,
 } from "@/ai/flows/suggest-reschedule-options";
 import { db } from "@/lib/firebase/firebase";
-import { getDocument, getOrCreateChat as getOrCreateChatFirestore, UserProfile, Appointment, updateAverageRating } from "@/lib/firebase/firestore";
-import { addDoc, collection, doc, getDoc, increment, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
+import { getDocument, getOrCreateChat as getOrCreateChatFirestore, UserProfile, Appointment, updateAverageRating, WalletTransaction } from "@/lib/firebase/firestore";
+import { addDoc, collection, doc, getDoc, increment, serverTimestamp, setDoc, updateDoc, writeBatch, runTransaction, query, where, getDocs, orderBy } from "firebase/firestore";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
@@ -294,4 +294,148 @@ export async function rateAppointment(values: z.infer<typeof rateAppointmentSche
         console.error("Firestore Error:", error);
         return { error: "Failed to submit rating." };
     }
+}
+
+// Wallet Actions
+const topUpWalletSchema = z.object({
+  userId: z.string().min(1),
+  coinsToConvert: z.number().int().positive(),
+});
+
+export async function topUpWalletFromCoins(values: z.infer<typeof topUpWalletSchema>) {
+  const validatedFields = topUpWalletSchema.safeParse(values);
+  if (!validatedFields.success) {
+    return { error: "Invalid input: " + validatedFields.error.errors.map((e) => e.message).join(" ") };
+  }
+  
+  const { userId, coinsToConvert } = validatedFields.data;
+  const userRef = doc(db, "users", userId);
+  
+  try {
+    const pkrAmount = (coinsToConvert / 1000) * 5;
+    
+    await runTransaction(db, async (transaction) => {
+      const userDoc = await transaction.get(userRef);
+      if (!userDoc.exists()) throw new Error("User not found.");
+      
+      const currentCoins = userDoc.data().coins || 0;
+      if (currentCoins < coinsToConvert) {
+        throw new Error("Insufficient coins.");
+      }
+      
+      transaction.update(userRef, {
+        coins: increment(-coinsToConvert),
+        walletBalance: increment(pkrAmount),
+      });
+
+      const walletTxRef = doc(collection(db, "users", userId, "walletTransactions"));
+      transaction.set(walletTxRef, {
+        amount: pkrAmount,
+        type: "Top-up",
+        description: `Converted ${coinsToConvert} coins`,
+        timestamp: serverTimestamp()
+      });
+    });
+    
+    revalidatePath('/wallet');
+    revalidatePath('/');
+    return { success: `Successfully converted ${coinsToConvert} coins to PKR ${pkrAmount.toFixed(2)}!` };
+  } catch (error: any) {
+    console.error("Top-up Error:", error);
+    return { error: error.message || "Failed to top up wallet." };
+  }
+}
+
+const payFromWalletSchema = z.object({
+    appointmentId: z.string().min(1),
+});
+
+export async function payFromWallet(values: z.infer<typeof payFromWalletSchema>) {
+    const { appointmentId } = values;
+    
+    try {
+        await runTransaction(db, async (transaction) => {
+            const appointmentRef = doc(db, "appointments", appointmentId);
+            const appointmentDoc = await transaction.get(appointmentRef);
+
+            if (!appointmentDoc.exists()) throw new Error("Appointment not found.");
+            const appointment = appointmentDoc.data() as Appointment;
+            if (appointment.status !== 'Completed') throw new Error("Appointment is not completed yet.");
+            if (appointment.paymentStatus === 'Paid') throw new Error("Appointment has already been paid for.");
+
+            const price = appointment.price || 0;
+            const customerRef = doc(db, "users", appointment.customerId);
+            const barberRef = doc(db, "users", appointment.barberId);
+
+            const customerDoc = await transaction.get(customerRef);
+            if (!customerDoc.exists()) throw new Error("Customer not found.");
+            const customerWalletBalance = customerDoc.data().walletBalance || 0;
+
+            if (customerWalletBalance < price) throw new Error("Insufficient wallet balance.");
+            
+            // 1. Debit customer wallet
+            transaction.update(customerRef, { walletBalance: increment(-price) });
+            const customerTxRef = doc(collection(db, "users", appointment.customerId, "walletTransactions"));
+            transaction.set(customerTxRef, {
+                amount: price,
+                type: "Payment Sent",
+                description: `Payment for service: ${appointment.service} to ${appointment.barberName}`,
+                timestamp: serverTimestamp()
+            });
+            
+            // 2. Credit barber wallet
+            transaction.update(barberRef, { walletBalance: increment(price) });
+            const barberTxRef = doc(collection(db, "users", appointment.barberId, "walletTransactions"));
+            transaction.set(barberTxRef, {
+                amount: price,
+                type: "Payment Received",
+                description: `Payment for service: ${appointment.service} from ${appointment.customerName}`,
+                timestamp: serverTimestamp()
+            });
+
+            // 3. Update appointment
+            transaction.update(appointmentRef, {
+                paymentStatus: 'Paid',
+                amountPaid: price
+            });
+            
+            // 4. Award coins
+            const customerCoins = Math.floor(price / 100) * 100;
+            const barberCoins = Math.floor(price / 100) * 50;
+            transaction.update(customerRef, { coins: increment(customerCoins) });
+            transaction.update(barberRef, { coins: increment(barberCoins) });
+        });
+
+        revalidatePath('/appointments');
+        revalidatePath('/billing');
+        revalidatePath('/wallet');
+        revalidatePath('/');
+        return { success: "Payment successful!" };
+    } catch (error: any) {
+        console.error("Payment Error:", error);
+        return { error: error.message || "Failed to process payment." };
+    }
+}
+
+
+export async function getWalletTransactions(userId: string): Promise<{ success: boolean; data?: WalletTransaction[]; error?: string }> {
+  try {
+    const q = query(
+      collection(db, "users", userId, "walletTransactions"),
+      orderBy("timestamp", "desc")
+    );
+    const querySnapshot = await getDocs(q);
+    const transactions = querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+            id: doc.id,
+            ...data,
+            timestamp: data.timestamp?.toDate().toISOString() || new Date().toISOString()
+        } as WalletTransaction
+    });
+    return { success: true, data: transactions };
+  } catch (error: any) {
+    console.error("Error fetching wallet transactions:", error);
+    return { success: false, error: "Could not fetch transaction history." };
+  }
 }

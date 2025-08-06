@@ -25,6 +25,7 @@ export interface UserProfile {
         } | null
     },
     coins?: number;
+    walletBalance?: number;
     shopImageUrls?: string[];
     address?: string;
     latitude?: number | null;
@@ -69,6 +70,14 @@ export interface Appointment {
   amountPaid?: number;
   barberRating?: number;
   customerRating?: number;
+}
+
+export interface WalletTransaction {
+    id: string;
+    amount: number;
+    type: 'Top-up' | 'Payment Sent' | 'Payment Received';
+    description: string;
+    timestamp: string;
 }
 
 

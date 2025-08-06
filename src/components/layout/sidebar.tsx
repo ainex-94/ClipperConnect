@@ -24,6 +24,7 @@ import {
   MessageSquare,
   UserCog,
   DollarSign,
+  Wallet
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { useAuth } from "@/hooks/use-auth";
@@ -36,6 +37,7 @@ const allMenuItems = [
   { href: "/customers", label: "Customers", icon: Contact, roles: ['admin'] },
   { href: "/chat", label: "Chat", icon: MessageSquare, roles: ['admin', 'barber', 'customer'] },
   { href: "/billing", label: "Billing", icon: DollarSign, roles: ['admin', 'barber', 'customer'] },
+  { href: "/wallet", label: "Wallet", icon: Wallet, roles: ['admin', 'barber', 'customer'] },
   { href: "/user-management", label: "User Management", icon: UserCog, roles: ['admin'] },
   { href: "/settings", label: "Settings", icon: Settings, roles: ['admin', 'barber', 'customer'] },
 ];
