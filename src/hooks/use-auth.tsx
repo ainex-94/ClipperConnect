@@ -136,11 +136,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           description: "Welcome to ClipperConnect!",
         });
       } else {
-        const userProfile = { id: docSnap.id, ...docSnap.data() } as UserProfile;
-        // If user exists, just update their role if a specific one was chosen during sign up.
-        if (role && userProfile.role !== role) {
-             await updateDoc(userRef, { role: role });
-        }
+         // For existing users, just show a welcome back message.
+         // Do NOT update their role on login.
         toast({
             title: "Login Successful",
             description: "Welcome back!",
@@ -187,7 +184,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     try {
         const result = await signInWithEmailAndPassword(auth, email, pass);
-        await handleAuthSuccess(result.user);
+        // We pass 'customer' as a default, but our updated createFirestoreUser
+        // function will ignore it for existing users.
+        await createFirestoreUser(result.user, 'customer');
     } catch (error: any) {
         console.error("Error during Email/Password sign-in:", error);
         toast({
