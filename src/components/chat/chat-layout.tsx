@@ -7,6 +7,7 @@ import { Sidebar, SidebarContent, SidebarHeader } from "@/components/ui/sidebar"
 import { ChatList } from "./chat-list";
 import { ChatWindow } from "./chat-window";
 import { type Chat } from "@/lib/firebase/firestore";
+import { useRouter } from "next/navigation";
 
 interface ChatLayoutProps {
     chats: Chat[];
@@ -15,6 +16,7 @@ interface ChatLayoutProps {
 
 export function ChatLayout({ chats: initialChats, defaultChatId }: ChatLayoutProps) {
     const [selectedChat, setSelectedChat] = useState<Chat | null>(null);
+    const router = useRouter();
 
     useEffect(() => {
         if (defaultChatId) {
@@ -22,15 +24,17 @@ export function ChatLayout({ chats: initialChats, defaultChatId }: ChatLayoutPro
             if (defaultChat) {
                 setSelectedChat(defaultChat);
             }
-        } else if (initialChats.length > 0 && !selectedChat) {
-            // Optionally select the first chat if none is selected
-            // setSelectedChat(initialChats[0]);
         }
-    }, [defaultChatId, initialChats, selectedChat]);
+    }, [defaultChatId, initialChats]);
+
+    const handleChatSelect = (chat: Chat) => {
+        setSelectedChat(chat);
+        router.push(`/chat?chatId=${chat.id}`, { scroll: false });
+    };
 
 
     return (
-        <div className="flex h-full border rounded-lg overflow-hidden bg-card">
+        <div className="flex h-[calc(100vh-8rem)] border rounded-lg overflow-hidden bg-card">
             <Sidebar className="w-full max-w-xs border-r">
                 <SidebarHeader className="p-4">
                     <h2 className="text-xl font-bold">Conversations</h2>
@@ -39,7 +43,7 @@ export function ChatLayout({ chats: initialChats, defaultChatId }: ChatLayoutPro
                     <ChatList
                         chats={initialChats}
                         selectedChat={selectedChat}
-                        onChatSelect={setSelectedChat}
+                        onChatSelect={handleChatSelect}
                     />
                 </SidebarContent>
             </Sidebar>
