@@ -6,12 +6,13 @@ import AppHeader from "@/components/layout/header";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
-import { Loader2, ShieldAlert, UserX } from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
+import { Loader2, ShieldAlert, UserX, LogOut } from "lucide-react";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../ui/card";
+import { Button } from "../ui/button";
 
 const PUBLIC_ROUTES = ['/login', '/register'];
 
-function AccessDeniedScreen({ status }: { status: 'Pending' | 'Rejected' }) {
+function AccessDeniedScreen({ status, onLogout }: { status: 'Pending' | 'Rejected', onLogout: () => void }) {
     return (
         <div className="flex min-h-screen items-center justify-center bg-muted/40">
             <Card className="w-full max-w-md text-center">
@@ -29,6 +30,12 @@ function AccessDeniedScreen({ status }: { status: 'Pending' | 'Rejected' }) {
                         }
                     </CardDescription>
                 </CardContent>
+                 <CardFooter>
+                    <Button variant="outline" className="w-full" onClick={onLogout}>
+                        <LogOut className="mr-2 h-4 w-4" />
+                        Logout
+                    </Button>
+                </CardFooter>
             </Card>
         </div>
     )
@@ -40,7 +47,7 @@ export default function MainLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const { user, loading } = useAuth();
+  const { user, loading, logout } = useAuth();
 
   // If we are on a public route, show the page content without the main layout.
   if (PUBLIC_ROUTES.includes(pathname)) {
@@ -57,7 +64,7 @@ export default function MainLayout({
   
   // If user is logged in but not approved, show the relevant screen
   if (user && user.accountStatus !== 'Approved') {
-      return <AccessDeniedScreen status={user.accountStatus || 'Pending'} />;
+      return <AccessDeniedScreen status={user.accountStatus || 'Pending'} onLogout={logout} />;
   }
 
   // For all other routes, show the main application layout.
