@@ -33,7 +33,7 @@ const allMenuItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard, roles: ['admin', 'barber', 'customer'] },
   { href: "/appointments", label: "Appointments", icon: Calendar, roles: ['admin', 'barber', 'customer'] },
   { href: "/barbers", label: "Barbers", icon: Users, roles: ['admin', 'customer'] },
-  { href: "/customers", label: "Customers", icon: Contact, roles: ['admin', 'barber'] },
+  { href: "/customers", label: "Customers", icon: Contact, roles: ['admin'] },
   { href: "/chat", label: "Chat", icon: MessageSquare, roles: ['admin', 'barber', 'customer'] },
   { href: "/billing", label: "Billing", icon: DollarSign, roles: ['admin', 'barber'] },
   { href: "/user-management", label: "User Management", icon: UserCog, roles: ['admin'] },
