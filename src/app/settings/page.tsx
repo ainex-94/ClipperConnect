@@ -18,7 +18,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect, useRef } from "react";
 import { Loader2, Camera, Upload, X, MapPin, LocateFixed } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { uploadImage } from "@/lib/firebase/storage";
+import { uploadImage } from "@/app/actions/image-actions";
 import Image from "next/image";
 
 const daysOfWeek = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
@@ -95,50 +95,46 @@ export default function SettingsPage() {
     }
   }, [user]);
   
-  const handleProfilePictureUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>, folder: string, isProfilePic: boolean = false) => {
     if (!user || !event.target.files || event.target.files.length === 0) return;
     
     setIsUploading(true);
     const file = event.target.files[0];
-    const path = `profile_pictures/${user.uid}`;
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("folder", folder);
+    formData.append("fileName", `${user.uid}-${Date.now()}`);
 
     try {
-      const photoURL = await uploadImage(file, path);
+      const result = await uploadImage(formData);
+      if (result.error || !result.url) {
+        throw new Error(result.error || "Upload failed");
+      }
+      
+      const imageUrl = result.url;
       const userRef = doc(db, "users", user.uid);
-      await updateDoc(userRef, { photoURL });
-      await refreshUser(); // Refresh user data from auth context
-      toast({ title: "Success", description: "Profile picture updated." });
+
+      if (isProfilePic) {
+        await updateDoc(userRef, { photoURL: imageUrl });
+        await refreshUser();
+        toast({ title: "Success", description: "Profile picture updated." });
+      } else {
+        await updateDoc(userRef, { shopImageUrls: arrayUnion(imageUrl) });
+        setShopImageUrls(prev => [...prev, imageUrl]);
+        toast({ title: "Success", description: "Shop photo added." });
+      }
     } catch (error) {
-      console.error("Error uploading profile picture: ", error);
+      console.error("Error uploading image: ", error);
       toast({ variant: "destructive", title: "Error", description: "Failed to upload image." });
     } finally {
       setIsUploading(false);
+      // Reset file input
+      if (event.target) {
+        event.target.value = "";
+      }
     }
   };
 
-  const handleShopPhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (!user || !event.target.files || event.target.files.length === 0) return;
-
-    setIsUploading(true);
-    const file = event.target.files[0];
-    const path = `shop_photos/${user.uid}/${Date.now()}_${file.name}`;
-
-    try {
-      const imageUrl = await uploadImage(file, path);
-      const userRef = doc(db, "users", user.uid);
-      await updateDoc(userRef, {
-        shopImageUrls: arrayUnion(imageUrl)
-      });
-      setShopImageUrls(prev => [...prev, imageUrl]);
-      toast({ title: "Success", description: "Shop photo added." });
-    } catch (error)
- {
-      console.error("Error uploading shop photo: ", error);
-      toast({ variant: "destructive", title: "Error", description: "Failed to upload shop photo." });
-    } finally {
-      setIsUploading(false);
-    }
-  };
 
   const handleDeleteShopPhoto = async (imageUrl: string) => {
     if (!user) return;
@@ -148,7 +144,7 @@ export default function SettingsPage() {
         shopImageUrls: arrayRemove(imageUrl)
       });
       setShopImageUrls(prev => prev.filter(url => url !== imageUrl));
-      // Note: This does not delete the file from Firebase Storage to keep it simple.
+      // Note: This does not delete the file from ImageKit to keep it simple.
       toast({ title: "Success", description: "Shop photo removed." });
     } catch (error) {
        console.error("Error deleting shop photo: ", error);
@@ -309,7 +305,7 @@ export default function SettingsPage() {
                     <input
                       type="file"
                       ref={profilePicInputRef}
-                      onChange={handleProfilePictureUpload}
+                      onChange={(e) => handleImageUpload(e, 'profile_pictures', true)}
                       className="hidden"
                       accept="image/*"
                     />
@@ -419,7 +415,7 @@ export default function SettingsPage() {
                         <input
                           type="file"
                           ref={shopPhotoInputRef}
-                          onChange={handleShopPhotoUpload}
+                          onChange={(e) => handleImageUpload(e, 'shop_photos')}
                           className="hidden"
                           accept="image/*"
                           disabled={isUploading}
