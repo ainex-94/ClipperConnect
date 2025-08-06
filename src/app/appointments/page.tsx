@@ -29,7 +29,7 @@ export default async function AppointmentsPage() {
   if (!user) {
     // This case should be handled by the main layout, but it's a good practice
     // to have a fallback to prevent rendering errors.
-    redirect('/login');
+    return null;
   }
 
   const appointments: Appointment[] = await getAppointmentsForUser(user.uid, user.role);
