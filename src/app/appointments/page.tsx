@@ -1,3 +1,4 @@
+
 // src/app/appointments/page.tsx
 'use client';
 
@@ -11,41 +12,44 @@ import { MoreHorizontal, Loader2 } from "lucide-react";
 import { format } from 'date-fns';
 import { NewAppointmentDialog } from "@/components/new-appointment-dialog";
 import { Button } from "@/components/ui/button";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { StartChatButton } from "@/components/start-chat-button";
+import { StartEndJobDialog } from "@/components/start-end-job-dialog";
+import { EnterPaymentDialog } from "@/components/enter-payment-dialog";
 
 export default function AppointmentsPage() {
   const { user, loading: authLoading } = useAuth();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   
-  useEffect(() => {
-    const fetchAppointments = async () => {
-      if (user) {
-        setLoading(true);
-        const userAppointments = await getAppointmentsForUser(user.uid);
-        setAppointments(userAppointments);
-        setLoading(false);
-      } else if (!authLoading) {
-        // user is not logged in and auth check is complete
-        setLoading(false);
-      }
-    };
+  const fetchAppointments = async () => {
+    if (user) {
+      setLoading(true);
+      const userAppointments = await getAppointmentsForUser(user.uid);
+      setAppointments(userAppointments);
+      setLoading(false);
+    } else if (!authLoading) {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchAppointments();
   }, [user, authLoading]);
 
 
-  const getStatusVariant = (status: string) => {
+  const getStatusVariant = (status: Appointment['status']) => {
     switch (status) {
       case "Confirmed":
         return "default";
-      case "Pending":
+      case "InProgress":
         return "secondary";
       case "Completed":
         return "outline";
       case "Cancelled":
         return "destructive";
+      case "Pending":
+          return "secondary"
       default:
         return "default";
     }
@@ -104,7 +108,34 @@ export default function AppointmentsPage() {
                                     <StartChatButton otherUserId={otherUserId} variant="ghost" className="w-full justify-start gap-2" />
                                 </DropdownMenuItem>
                                 <DropdownMenuItem>Edit</DropdownMenuItem>
-                                <DropdownMenuItem className="text-destructive">Cancel</DropdownMenuItem>
+                                
+                                {user.role === 'barber' && (
+                                  <>
+                                    <DropdownMenuSeparator />
+                                    {appointment.status === 'Confirmed' && (
+                                      <StartEndJobDialog
+                                        appointmentId={appointment.id}
+                                        action="start"
+                                        onSuccess={fetchAppointments}
+                                      />
+                                    )}
+                                    {appointment.status === 'InProgress' && (
+                                      <StartEndJobDialog
+                                        appointmentId={appointment.id}
+                                        action="end"
+                                        onSuccess={fetchAppointments}
+                                      />
+                                    )}
+                                    {appointment.status === 'Completed' && appointment.paymentStatus !== 'Paid' && (
+                                       <EnterPaymentDialog
+                                        appointment={appointment}
+                                        onSuccess={fetchAppointments}
+                                      />
+                                    )}
+                                    <DropdownMenuItem className="text-destructive">Cancel</DropdownMenuItem>
+                                  </>
+                                )}
+
                             </DropdownMenuContent>
                        </DropdownMenu>
                     </TableCell>

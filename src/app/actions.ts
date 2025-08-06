@@ -6,7 +6,7 @@ import {
   type SuggestRescheduleOptionsInput,
 } from "@/ai/flows/suggest-reschedule-options";
 import { db } from "@/lib/firebase/firebase";
-import { getDocument, getOrCreateChat as getOrCreateChatFirestore, UserProfile } from "@/lib/firebase/firestore";
+import { getDocument, getOrCreateChat as getOrCreateChatFirestore, UserProfile, Appointment } from "@/lib/firebase/firestore";
 import { addDoc, collection, serverTimestamp, doc, setDoc, updateDoc } from "firebase/firestore";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -137,5 +137,64 @@ export async function updateUserRole(values: z.infer<typeof updateUserRoleSchema
     } catch (error) {
         console.error("Firestore Error:", error);
         return { error: "Failed to update user role." };
+    }
+}
+
+const updateAppointmentStatusSchema = z.object({
+    appointmentId: z.string().min(1),
+    status: z.enum(['InProgress', 'Completed']),
+});
+
+export async function updateAppointmentStatus(values: z.infer<typeof updateAppointmentStatusSchema>) {
+    const validatedFields = updateAppointmentStatusSchema.safeParse(values);
+
+    if (!validatedFields.success) {
+        return {
+            error: "Invalid fields: " + validatedFields.error.errors.map(e => e.message).join(', '),
+        };
+    }
+
+    try {
+        const appointmentRef = doc(db, "appointments", values.appointmentId);
+        await updateDoc(appointmentRef, { status: values.status });
+        
+        revalidatePath('/appointments');
+        return { success: `Appointment status updated to ${values.status}!` };
+
+    } catch (error) {
+        console.error("Firestore Error:", error);
+        return { error: "Failed to update appointment status." };
+    }
+}
+
+const recordPaymentSchema = z.object({
+    appointmentId: z.string().min(1),
+    amountPaid: z.coerce.number().min(0, "Amount paid cannot be negative."),
+});
+
+export async function recordPayment(values: z.infer<typeof recordPaymentSchema>) {
+    const validatedFields = recordPaymentSchema.safeParse(values);
+
+    if (!validatedFields.success) {
+        return {
+            error: "Invalid fields: " + validatedFields.error.errors.map(e => e.message).join(', '),
+        };
+    }
+
+    try {
+        const appointmentRef = doc(db, "appointments", values.appointmentId);
+        await updateDoc(appointmentRef, { 
+            amountPaid: values.amountPaid,
+            paymentStatus: 'Paid',
+            status: 'Completed' // Ensure status is completed
+        });
+        
+        revalidatePath('/appointments');
+        revalidatePath('/billing');
+        return { success: `Payment of ${values.amountPaid} recorded successfully!` };
+
+    } catch (error) {
+        console.error("Firestore Error:", error);
+        return { error: "Failed to record payment." };
     }
 }

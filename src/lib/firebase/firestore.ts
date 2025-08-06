@@ -57,9 +57,10 @@ export interface Appointment {
   barberPhotoURL?: string;
   service: string;
   dateTime: string;
-  status: 'Confirmed' | 'Pending' | 'Completed' | 'Cancelled';
+  status: 'Confirmed' | 'Pending' | 'InProgress' | 'Completed' | 'Cancelled';
   price?: number;
   paymentStatus?: 'Paid' | 'Unpaid';
+  amountPaid?: number;
 }
 
 
@@ -143,7 +144,7 @@ export async function getAllAppointments(barberId?: string): Promise<Appointment
     return appointments;
 }
 
-export async function updateAppointmentStatus(appointmentId: string, paymentStatus: 'Paid' | 'Unpaid') {
+export async function updateAppointmentPayment(appointmentId: string, paymentStatus: 'Paid' | 'Unpaid') {
   try {
     const appointmentRef = doc(db, "appointments", appointmentId);
     await updateDoc(appointmentRef, { paymentStatus });
