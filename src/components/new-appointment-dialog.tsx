@@ -7,6 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { addAppointment } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -50,21 +51,11 @@ interface User {
 
 export function NewAppointmentDialog() {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [customers, setCustomers] = useState<User[]>([]);
-
-  useEffect(() => {
-    if (open) {
-      const fetchUsers = async () => {
-        setIsLoading(true);
-        const customerData = await getCustomers();
-        setCustomers(customerData as User[]);
-        setIsLoading(false);
-      };
-      fetchUsers();
-    }
-  }, [open]);
+  const [barbers, setBarbers] = useState<User[]>([]);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -73,6 +64,36 @@ export function NewAppointmentDialog() {
       dateTime: new Date(new Date().getTime() + 60 * 60 * 1000).toISOString().substring(0, 16), // 1 hour from now
     },
   });
+
+  useEffect(() => {
+    // Reset form with role-specific defaults whenever the dialog opens or user changes
+    if (open && user) {
+      form.reset({
+        customerId: user.role === 'customer' ? user.uid : '',
+        barberId: user.role === 'barber' ? user.uid : '',
+        service: "Haircut",
+        dateTime: new Date(new Date().getTime() + 60 * 60 * 1000).toISOString().substring(0, 16),
+      });
+    }
+  }, [open, user, form]);
+
+  useEffect(() => {
+    if (open) {
+      const fetchUsers = async () => {
+        setIsLoading(true);
+        // Fetch both lists regardless of role for simplicity, then filter UI
+        const [customerData, barberData] = await Promise.all([
+            getCustomers(),
+            getBarbers()
+        ]);
+        setCustomers(customerData as User[]);
+        setBarbers(barberData as User[]);
+        setIsLoading(false);
+      };
+      fetchUsers();
+    }
+  }, [open]);
+
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
@@ -94,6 +115,8 @@ export function NewAppointmentDialog() {
       form.reset();
     }
   }
+  
+  if (!user) return null;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -112,52 +135,119 @@ export function NewAppointmentDialog() {
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
-            <FormField
-              control={form.control}
-              name="customerId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Customer</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a customer" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {customers.map((customer) => (
-                        <SelectItem key={customer.id} value={customer.id}>
-                          {customer.displayName}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="barberId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Barber</FormLabel>
-                   <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a barber" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                       {/* This needs to be populated */}
-                      <SelectItem value="barber1">Barber 1</SelectItem>
-                      <SelectItem value="barber2">Barber 2</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            
+            {/* Customer Field Logic */}
+            {user.role === 'admin' && (
+               <FormField
+                control={form.control}
+                name="customerId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Customer</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger disabled={isLoading}>
+                          <SelectValue placeholder="Select a customer" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {customers.map((customer) => (
+                          <SelectItem key={customer.id} value={customer.id}>
+                            {customer.displayName}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+            {user.role === 'barber' && (
+                <FormField
+                control={form.control}
+                name="customerId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Customer</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger disabled={isLoading}>
+                          <SelectValue placeholder="Select a customer" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {customers.map((customer) => (
+                          <SelectItem key={customer.id} value={customer.id}>
+                            {customer.displayName}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+            {user.role === 'customer' && (
+                <FormField
+                    control={form.control}
+                    name="customerId"
+                    render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Customer</FormLabel>
+                        <FormControl>
+                            <Input {...field} value={user.displayName || ''} disabled />
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+              />
+            )}
+
+            {/* Barber Field Logic */}
+            {(user.role === 'admin' || user.role === 'customer') && (
+                 <FormField
+                    control={form.control}
+                    name="barberId"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Barber</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                            <SelectTrigger disabled={isLoading}>
+                                <SelectValue placeholder="Select a barber" />
+                            </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                                {barbers.map((barber) => (
+                                    <SelectItem key={barber.id} value={barber.id}>
+                                    {barber.displayName}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                />
+            )}
+            {user.role === 'barber' && (
+                 <FormField
+                    control={form.control}
+                    name="barberId"
+                    render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Barber</FormLabel>
+                        <FormControl>
+                            <Input {...field} value={user.displayName || ''} disabled />
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+              />
+            )}
+            
             <FormField
               control={form.control}
               name="service"
