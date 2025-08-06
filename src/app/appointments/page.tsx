@@ -8,10 +8,15 @@ import { format } from 'date-fns';
 import { NewAppointmentDialog } from "@/components/new-appointment-dialog";
 import { getCurrentUser } from "@/lib/firebase/auth-actions";
 import { redirect } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { StartChatButton } from "@/components/start-chat-button";
 
 interface Appointment {
   id: string;
+  customerId: string;
   customerName: string;
+  barberId: string;
   barberName: string;
   service: string;
   dateTime: string;
@@ -40,6 +45,7 @@ export default async function AppointmentsPage() {
         return "default";
     }
   };
+  
   return (
     <Card>
        <CardHeader className="flex flex-row items-center justify-between">
@@ -64,20 +70,36 @@ export default async function AppointmentsPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {appointments.map((appointment) => (
-              <TableRow key={appointment.id}>
-                <TableCell className="font-medium">{appointment.customerName}</TableCell>
-                <TableCell>{appointment.barberName}</TableCell>
-                <TableCell>{appointment.service}</TableCell>
-                <TableCell>{format(new Date(appointment.dateTime), "PPP p")}</TableCell>
-                <TableCell>
-                  <Badge variant={getStatusVariant(appointment.status) as any}>{appointment.status}</Badge>
-                </TableCell>
-                <TableCell>
-                  {/* Dropdown can be added here for actions like 'Edit', 'Cancel' */}
-                </TableCell>
-              </TableRow>
-            ))}
+            {appointments.map((appointment) => {
+               const otherUserId = user.role === 'barber' ? appointment.customerId : appointment.barberId;
+               return (
+                <TableRow key={appointment.id}>
+                    <TableCell className="font-medium">{appointment.customerName}</TableCell>
+                    <TableCell>{appointment.barberName}</TableCell>
+                    <TableCell>{appointment.service}</TableCell>
+                    <TableCell>{format(new Date(appointment.dateTime), "PPP p")}</TableCell>
+                    <TableCell>
+                    <Badge variant={getStatusVariant(appointment.status) as any}>{appointment.status}</Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                       <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                    <span className="sr-only">Actions</span>
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuItem asChild>
+                                    <StartChatButton otherUserId={otherUserId} variant="ghost" className="w-full justify-start gap-2" />
+                                </DropdownMenuItem>
+                                <DropdownMenuItem>Edit</DropdownMenuItem>
+                                <DropdownMenuItem className="text-destructive">Cancel</DropdownMenuItem>
+                            </DropdownMenuContent>
+                       </DropdownMenu>
+                    </TableCell>
+                </TableRow>
+            )})}
              {appointments.length === 0 && (
               <TableRow>
                 <TableCell colSpan={6} className="text-center h-24">

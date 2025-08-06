@@ -4,9 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { getCurrentUser } from "@/lib/firebase/auth-actions";
 import { getBarbers, UserProfile } from "@/lib/firebase/firestore";
-import { Phone, Mail, Star } from "lucide-react";
+import { Phone, Mail, Star, MessageSquare } from "lucide-react";
 import { redirect } from "next/navigation";
 import { ViewScheduleDialog } from "@/components/view-schedule-dialog";
+import { StartChatButton } from "@/components/start-chat-button";
 
 export default async function BarbersPage() {
   const user = await getCurrentUser();
@@ -52,8 +53,9 @@ export default async function BarbersPage() {
                 </div>
               </div>
             </CardContent>
-            <CardFooter>
+            <CardFooter className="flex flex-col sm:flex-row gap-2">
                 <ViewScheduleDialog barber={barber} />
+                <StartChatButton otherUserId={barber.id} />
             </CardFooter>
           </Card>
         ))}

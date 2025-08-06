@@ -6,9 +6,11 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getCurrentUser } from "@/lib/firebase/auth-actions";
 import { getCustomers } from "@/lib/firebase/firestore";
-import { Search } from "lucide-react";
+import { Search, MoreHorizontal } from "lucide-react";
 import { format } from 'date-fns';
 import { redirect } from "next/navigation";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { StartChatButton } from "@/components/start-chat-button";
 
 interface Customer {
     id: string;
@@ -51,7 +53,8 @@ export default async function CustomersPage() {
               <TableHead>Name</TableHead>
               <TableHead className="hidden md:table-cell">Contact</TableHead>
               <TableHead className="hidden sm:table-cell">Total Appointments</TableHead>
-              <TableHead className="text-right">Member Since</TableHead>
+              <TableHead className="hidden sm:table-cell text-center">Member Since</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -71,12 +74,28 @@ export default async function CustomersPage() {
                     <div className="text-muted-foreground text-xs">{customer.phone || 'N/A'}</div>
                 </TableCell>
                 <TableCell className="hidden sm:table-cell text-center">{customer.totalAppointments || 0}</TableCell>
-                <TableCell className="text-right">{format(new Date(customer.createdAt), 'PPP')}</TableCell>
+                <TableCell className="hidden sm:table-cell text-center">{format(new Date(customer.createdAt), 'PPP')}</TableCell>
+                <TableCell className="text-right">
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                                <MoreHorizontal className="h-4 w-4" />
+                                <span className="sr-only">Actions</span>
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                           <DropdownMenuItem asChild>
+                              <StartChatButton otherUserId={customer.id} variant="ghost" className="w-full justify-start gap-2" />
+                           </DropdownMenuItem>
+                           <DropdownMenuItem>View Profile</DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                </TableCell>
               </TableRow>
             ))}
              {customers.length === 0 && (
               <TableRow>
-                <TableCell colSpan={4} className="text-center h-24">
+                <TableCell colSpan={5} className="text-center h-24">
                   No customers found.
                 </TableCell>
               </TableRow>
