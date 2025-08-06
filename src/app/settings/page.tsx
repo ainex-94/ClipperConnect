@@ -38,6 +38,12 @@ export default function SettingsPage() {
   const [shopImageUrls, setShopImageUrls] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
+  const [notificationPrefs, setNotificationPrefs] = useState({
+    appointments: true,
+    reschedules: false,
+    promotions: true,
+    pushAll: true,
+  });
   
   const profilePicInputRef = useRef<HTMLInputElement>(null);
   const shopPhotoInputRef = useRef<HTMLInputElement>(null);
@@ -205,6 +211,19 @@ export default function SettingsPage() {
       setLoading(false);
     }
   }
+
+  const handleNotificationChange = (key: keyof typeof notificationPrefs, value: boolean) => {
+    setNotificationPrefs(prev => ({ ...prev, [key]: value }));
+  };
+
+  const handleSaveNotificationPrefs = () => {
+    // In a real app, you would save these preferences to the user's profile in Firestore.
+    // For this demo, we'll just show a toast.
+    toast({
+        title: "Preferences Saved",
+        description: "Your notification settings have been updated.",
+    });
+  };
   
   if (loading || !user) {
       return <div className="flex items-center justify-center h-full"><Loader2 className="h-8 w-8 animate-spin" /></div>
@@ -423,15 +442,27 @@ export default function SettingsPage() {
                         <Label className="font-semibold">Email Notifications</Label>
                         <div className="space-y-3 mt-2">
                             <div className="flex items-center space-x-2">
-                                <Checkbox id="notify-appointments" defaultChecked />
+                                <Checkbox 
+                                  id="notify-appointments" 
+                                  checked={notificationPrefs.appointments}
+                                  onCheckedChange={(checked) => handleNotificationChange('appointments', !!checked)}
+                                />
                                 <Label htmlFor="notify-appointments" className="font-normal">New appointment confirmations</Label>
                             </div>
                             <div className="flex items-center space-x-2">
-                                <Checkbox id="notify-reschedules" />
+                                <Checkbox 
+                                  id="notify-reschedules" 
+                                  checked={notificationPrefs.reschedules}
+                                  onCheckedChange={(checked) => handleNotificationChange('reschedules', !!checked)}
+                                />
                                 <Label htmlFor="notify-reschedules" className="font-normal">Appointment reschedules or cancellations</Label>
                             </div>
                             <div className="flex items-center space-x-2">
-                                <Checkbox id="notify-promotions" defaultChecked />
+                                <Checkbox 
+                                  id="notify-promotions" 
+                                  checked={notificationPrefs.promotions}
+                                  onCheckedChange={(checked) => handleNotificationChange('promotions', !!checked)}
+                                />
                                 <Label htmlFor="notify-promotions" className="font-normal">Promotional offers and news</Label>
                             </div>
                         </div>
@@ -440,13 +471,17 @@ export default function SettingsPage() {
                         <Label className="font-semibold">Push Notifications</Label>
                         <div className="flex items-center justify-between mt-2">
                             <Label htmlFor="push-all" className="font-normal">Enable all push notifications</Label>
-                            <Switch id="push-all" defaultChecked />
+                            <Switch 
+                              id="push-all" 
+                              checked={notificationPrefs.pushAll}
+                              onCheckedChange={(checked) => handleNotificationChange('pushAll', checked)}
+                            />
                         </div>
                      </div>
                 </div>
             </CardContent>
             <CardFooter className="border-t px-6 py-4">
-              <Button>Save Preferences</Button>
+              <Button onClick={handleSaveNotificationPrefs}>Save Preferences</Button>
             </CardFooter>
           </Card>
         </div>
