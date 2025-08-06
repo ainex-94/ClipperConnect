@@ -4,19 +4,17 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster"
 import MainLayout from '@/components/layout/main-layout';
 import { AuthProvider } from '@/hooks/use-auth';
-import { getCurrentUser } from '@/lib/firebase/auth-actions';
 
 export const metadata: Metadata = {
   title: 'ClipperConnect',
   description: 'The all-in-one platform for barber services.',
 };
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const user = await getCurrentUser();
 
   return (
     <html lang="en" suppressHydrationWarning>
@@ -27,7 +25,7 @@ export default async function RootLayout({
       </head>
       <body className="font-body antialiased">
         <AuthProvider>
-          <MainLayout serverUser={user}>
+          <MainLayout>
             {children}
           </MainLayout>
         </AuthProvider>

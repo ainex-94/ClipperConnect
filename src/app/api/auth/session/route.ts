@@ -1,25 +1,15 @@
 
 // src/app/api/auth/session/route.ts
-import { createSessionCookie, clearSessionCookie } from "@/lib/firebase/auth-actions";
 import { NextResponse } from "next/server";
 
+// This API route is no longer used for session management since firebase-admin
+// has been removed. The client-side Firebase SDK will now handle auth state persistence.
+// These handlers return success to prevent errors from old client-side calls.
+
 export async function POST(request: Request) {
-  const { idToken } = await request.json();
-  try {
-    await createSessionCookie(idToken);
-    return NextResponse.json({ success: true });
-  } catch (error: any) {
-    console.error("Failed to create session cookie:", error);
-    return NextResponse.json({ success: false, error: error.message || 'Server error creating session.' }, { status: 500 });
-  }
+  return NextResponse.json({ success: true, message: "Session management is now client-side." });
 }
 
 export async function DELETE() {
-  try {
-    await clearSessionCookie();
-    return NextResponse.json({ success: true });
-  } catch (error: any) {
-    console.error("Failed to clear session cookie:", error);
-    return NextResponse.json({ success: false, error: error.message || 'Server error clearing session.' }, { status: 500 });
-  }
+  return NextResponse.json({ success: true, message: "Session management is now client-side." });
 }

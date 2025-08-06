@@ -44,16 +44,7 @@ const createSession = async (firebaseUser: FirebaseUser) => {
       body: JSON.stringify({ idToken }),
     });
     if (!res.ok) {
-      throw new Error('Failed to create session');
-    }
-}
-
-const clearSession = async () => {
-    const res = await fetch('/api/auth/session', {
-      method: 'DELETE',
-    });
-    if (!res.ok) {
-      throw new Error('Failed to clear session');
+      console.warn('Failed to create session cookie. App is in client-only auth mode.');
     }
 }
 
@@ -197,7 +188,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = async () => {
     setLoading(true);
     await signOut(auth);
-    await clearSession();
     // onAuthStateChanged will set user to null
     router.push("/login"); 
     toast({

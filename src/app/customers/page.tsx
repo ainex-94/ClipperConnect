@@ -1,34 +1,55 @@
 // src/app/customers/page.tsx
+'use client';
+
+import { useState, useEffect } from "react";
+import { useAuth } from "@/hooks/use-auth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { getCurrentUser } from "@/lib/firebase/auth-actions";
-import { getCustomers } from "@/lib/firebase/firestore";
-import { Search, MoreHorizontal } from "lucide-react";
+import { getCustomers, UserProfile } from "@/lib/firebase/firestore";
+import { Search, MoreHorizontal, Loader2 } from "lucide-react";
 import { format } from 'date-fns';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { StartChatButton } from "@/components/start-chat-button";
 
-interface Customer {
-    id: string;
-    displayName: string;
-    email: string;
-    photoURL: string;
-    phone?: string;
+interface Customer extends UserProfile {
     totalAppointments?: number;
-    createdAt: string;
 }
 
-export default async function CustomersPage() {
-    const user = await getCurrentUser();
-    
-    if (!user) {
-      return null;
-    }
+export default function CustomersPage() {
+    const { user } = useAuth();
+    const [customers, setCustomers] = useState<Customer[]>([]);
+    const [loading, setLoading] = useState(true);
 
-    const customers: Customer[] = await getCustomers();
+    useEffect(() => {
+      const fetchCustomers = async () => {
+        setLoading(true);
+        const customerData = await getCustomers();
+        setCustomers(customerData);
+        setLoading(false);
+      }
+      if (user?.role === 'admin' || user?.role === 'barber') {
+        fetchCustomers();
+      } else {
+        setLoading(false);
+      }
+    }, [user]);
+
+  if (user?.role !== 'admin' && user?.role !== 'barber') {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Customers</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-muted-foreground">You do not have permission to view this page.</p>
+        </CardContent>
+      </Card>
+    );
+  }
+    
 
   return (
     <Card>
@@ -48,6 +69,11 @@ export default async function CustomersPage() {
         </div>
       </CardHeader>
       <CardContent>
+        {loading ? (
+            <div className="flex justify-center items-center h-48">
+              <Loader2 className="h-8 w-8 animate-spin" />
+            </div>
+        ) : (
         <Table>
           <TableHeader>
             <TableRow>
@@ -103,6 +129,7 @@ export default async function CustomersPage() {
             )}
           </TableBody>
         </Table>
+        )}
       </CardContent>
     </Card>
   );

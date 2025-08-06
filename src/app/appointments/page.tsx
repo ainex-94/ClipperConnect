@@ -1,38 +1,40 @@
 // src/app/appointments/page.tsx
+'use client';
+
+import { useEffect, useState } from "react";
+import { useAuth } from "@/hooks/use-auth";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { getAppointmentsForUser } from "@/lib/firebase/firestore";
-import { MoreHorizontal } from "lucide-react";
+import { getAppointmentsForUser, Appointment } from "@/lib/firebase/firestore";
+import { MoreHorizontal, Loader2 } from "lucide-react";
 import { format } from 'date-fns';
 import { NewAppointmentDialog } from "@/components/new-appointment-dialog";
-import { getCurrentUser } from "@/lib/firebase/auth-actions";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { StartChatButton } from "@/components/start-chat-button";
-import { redirect } from "next/navigation";
 
-interface Appointment {
-  id: string;
-  customerId: string;
-  customerName: string;
-  barberId: string;
-  barberName: string;
-  service: string;
-  dateTime: string;
-  status: 'Confirmed' | 'Pending' | 'Completed' | 'Cancelled';
-}
-
-export default async function AppointmentsPage() {
-  const user = await getCurrentUser();
+export default function AppointmentsPage() {
+  const { user, loading: authLoading } = useAuth();
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [loading, setLoading] = useState(true);
   
-  if (!user) {
-    // This case should be handled by the main layout, but it's a good practice
-    // to have a fallback to prevent rendering errors.
-    return null;
-  }
+  useEffect(() => {
+    const fetchAppointments = async () => {
+      if (user) {
+        setLoading(true);
+        const userAppointments = await getAppointmentsForUser(user.uid);
+        setAppointments(userAppointments);
+        setLoading(false);
+      } else if (!authLoading) {
+        // user is not logged in and auth check is complete
+        setLoading(false);
+      }
+    };
 
-  const appointments: Appointment[] = await getAppointmentsForUser(user.uid, user.role);
+    fetchAppointments();
+  }, [user, authLoading]);
+
 
   const getStatusVariant = (status: string) => {
     switch (status) {
@@ -58,9 +60,14 @@ export default async function AppointmentsPage() {
             Manage all your upcoming and past appointments.
           </CardDescription>
         </div>
-        <NewAppointmentDialog />
+        {user && <NewAppointmentDialog />}
       </CardHeader>
       <CardContent>
+        {loading ? (
+           <div className="flex justify-center items-center h-48">
+            <Loader2 className="h-8 w-8 animate-spin" />
+          </div>
+        ) : (
         <Table>
           <TableHeader>
             <TableRow>
@@ -73,7 +80,7 @@ export default async function AppointmentsPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {appointments.map((appointment) => {
+            {user && appointments.map((appointment) => {
                const otherUserId = user.uid === appointment.barberId ? appointment.customerId : appointment.barberId;
                return (
                 <TableRow key={appointment.id}>
@@ -103,15 +110,16 @@ export default async function AppointmentsPage() {
                     </TableCell>
                 </TableRow>
             )})}
-             {appointments.length === 0 && (
+             {(!user || appointments.length === 0) && (
               <TableRow>
                 <TableCell colSpan={6} className="text-center h-24">
-                  No appointments found.
+                  {user ? "No appointments found." : "Please log in to see your appointments."}
                 </TableCell>
               </TableRow>
             )}
           </TableBody>
         </Table>
+        )}
       </CardContent>
     </Card>
   );

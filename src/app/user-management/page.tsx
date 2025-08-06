@@ -1,23 +1,47 @@
 // src/app/user-management/page.tsx
+'use client';
+
+import { useState, useEffect } from "react";
+import { useAuth } from "@/hooks/use-auth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { getCurrentUser } from "@/lib/firebase/auth-actions";
 import { getAllUsers, UserProfile } from "@/lib/firebase/firestore";
 import { format } from 'date-fns';
-import { redirect } from "next/navigation";
 import { RoleSwitcher } from "./_components/role-switcher";
+import { Loader2 } from "lucide-react";
 
-export default async function UserManagementPage() {
-    const user = await getCurrentUser();
-    if (!user) {
-      return null;
-    }
+export default function UserManagementPage() {
+    const { user } = useAuth();
+    const [users, setUsers] = useState<UserProfile[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchUsers = async () => {
+            setLoading(true);
+            const allUsers = await getAllUsers();
+            setUsers(allUsers);
+            setLoading(false);
+        };
+        if (user?.role === 'admin') {
+          fetchUsers();
+        } else {
+          setLoading(false);
+        }
+    }, [user]);
     
-    if (user.role !== 'admin') {
-      redirect('/');
+    if (user?.role !== 'admin') {
+      return (
+        <Card>
+          <CardHeader>
+            <CardTitle>User Management</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground">You do not have permission to view this page.</p>
+          </CardContent>
+        </Card>
+      );
     }
-    const users: UserProfile[] = await getAllUsers();
 
   return (
     <Card>
@@ -28,6 +52,11 @@ export default async function UserManagementPage() {
         </div>
       </CardHeader>
       <CardContent>
+         {loading ? (
+            <div className="flex justify-center items-center h-48">
+              <Loader2 className="h-8 w-8 animate-spin" />
+            </div>
+        ) : (
         <Table>
           <TableHeader>
             <TableRow>
@@ -65,6 +94,7 @@ export default async function UserManagementPage() {
             )}
           </TableBody>
         </Table>
+        )}
       </CardContent>
     </Card>
   );
