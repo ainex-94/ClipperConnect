@@ -6,16 +6,15 @@ import { cookies } from 'next/headers';
 import { initializeApp, getApps, getApp, type App } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
-import { firebaseConfig } from './config';
 import { UserProfile } from './firestore';
 
 function getAdminApp(): App {
+    // When running in a secure server environment, initializeApp() with no parameters
+    // will automatically discover service account credentials.
     if (getApps().length > 0) {
         return getApp();
     }
-    return initializeApp({
-        projectId: firebaseConfig.projectId,
-    });
+    return initializeApp();
 }
 
 const app = getAdminApp();
