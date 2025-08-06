@@ -63,8 +63,8 @@ export function ChatWindow({ chat }: ChatWindowProps) {
   const otherParticipant = chat.participants.find(p => p.id !== user.uid);
 
   return (
-    <div className="flex h-full flex-col">
-      <header className="flex items-center gap-4 border-b p-4 shrink-0">
+    <div className="flex flex-col h-full">
+      <header className="flex items-center gap-4 border-b p-4">
         <Avatar className="h-10 w-10">
             <AvatarImage data-ai-hint="person portrait" src={otherParticipant?.photoURL} />
             <AvatarFallback>{otherParticipant?.displayName?.[0]}</AvatarFallback>
@@ -106,7 +106,7 @@ export function ChatWindow({ chat }: ChatWindowProps) {
         ))}
         <div ref={messagesEndRef} />
       </div>
-      <footer className="border-t p-4 shrink-0">
+      <footer className="border-t p-4">
         <form onSubmit={handleSendMessage} className="flex items-center gap-2">
           <Input
             value={newMessage}
