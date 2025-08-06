@@ -73,8 +73,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
         unsubscribeFirestore = onSnapshot(userRef, (docSnap) => {
           if (docSnap.exists()) {
-            setUser({ id: docSnap.id, ...docSnap.data() } as UserProfile);
+            const userProfile = { id: docSnap.id, ...docSnap.data() } as UserProfile;
+            
+            // Centralized access control
+            if (userProfile.role !== 'admin' && userProfile.accountStatus !== 'Approved') {
+                 // Don't log them out immediately, let the MainLayout handle showing the status screen
+                 setUser(userProfile);
+            } else {
+                setUser(userProfile);
+            }
+
           } else {
+            // This can happen briefly during registration
             setUser(null);
           }
           setLoading(false);
@@ -102,9 +112,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
   
   const handleAuthSuccess = async (firebaseUser: FirebaseUser) => {
-      const redirectPath = sessionStorage.getItem('redirectPath') || '/';
-      sessionStorage.removeItem('redirectPath');
-      router.push(redirectPath);
+      const userProfile = await fetchUserProfile(firebaseUser);
+      if (userProfile && userProfile.role !== 'admin' && userProfile.accountStatus !== 'Approved') {
+          // Don't redirect to dashboard, MainLayout will show pending/rejected screen
+          toast({
+              title: "Account Status",
+              description: userProfile.accountStatus === 'Pending' 
+                  ? "Your account is pending approval." 
+                  : "Your account has been rejected.",
+              variant: userProfile.accountStatus === 'Rejected' ? 'destructive' : 'default'
+          });
+          // No redirect, let the layout handle it.
+      } else {
+          const redirectPath = sessionStorage.getItem('redirectPath') || '/';
+          sessionStorage.removeItem('redirectPath');
+          router.push(redirectPath);
+      }
   }
 
   const createFirestoreUser = async (firebaseUser: FirebaseUser, role: 'customer' | 'barber' | 'admin', displayName?: string) => {
@@ -119,6 +142,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             photoURL: firebaseUser.photoURL || `https://placehold.co/100x100.png?text=${(displayName || firebaseUser.displayName)?.charAt(0)}`,
             createdAt: new Date().toISOString(),
             role: role,
+            accountStatus: role === 'admin' ? 'Approved' : 'Pending', // Admins are auto-approved
             coins: 0,
             walletBalance: 0,
             rating: 0,
@@ -130,13 +154,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await setDoc(userRef, newUserProfile);
         toast({
           title: "Registration Successful",
-          description: "Welcome to ClipperConnect!",
+          description: "Your account is now pending admin approval.",
         });
       } else {
-        toast({
-            title: "Login Successful",
-            description: "Welcome back!",
-        });
+        const existingUser = docSnap.data() as UserProfile;
+        if (existingUser.accountStatus === 'Approved') {
+           toast({
+                title: "Login Successful",
+                description: "Welcome back!",
+            });
+        }
       }
       
       await handleAuthSuccess(firebaseUser);
@@ -179,10 +206,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     try {
         const result = await signInWithEmailAndPassword(auth, email, pass);
-        // Assuming role is already set, if not, this might need adjustment
         const userProfile = await fetchUserProfile(result.user);
         if (!userProfile) {
-            // This is a fallback for users created before the role system
+            // This case should ideally not happen if registration is enforced
             await createFirestoreUser(result.user, 'customer');
         } else {
             await handleAuthSuccess(result.user);

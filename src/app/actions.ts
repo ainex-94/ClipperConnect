@@ -183,6 +183,37 @@ export async function updateUserRole(values: z.infer<typeof updateUserRoleSchema
     }
 }
 
+
+const updateUserAccountStatusSchema = z.object({
+    userId: z.string().min(1),
+    status: z.enum(['Pending', 'Approved', 'Rejected']),
+});
+
+export async function updateUserAccountStatus(values: z.infer<typeof updateUserAccountStatusSchema>) {
+    const validatedFields = updateUserAccountStatusSchema.safeParse(values);
+
+    if (!validatedFields.success) {
+        return {
+            error: "Invalid fields: " + validatedFields.error.errors.map(e => e.message).join(', '),
+        };
+    }
+    
+    const { userId, status } = validatedFields.data;
+
+    try {
+        const userRef = doc(db, "users", userId);
+        await updateDoc(userRef, { accountStatus: status });
+        
+        revalidatePath('/user-management');
+        return { success: `User account has been ${status}.` };
+
+    } catch (error) {
+        console.error("Firestore Error:", error);
+        return { error: "Failed to update user account status." };
+    }
+}
+
+
 const updateAppointmentStatusSchema = z.object({
     appointmentId: z.string().min(1),
     status: z.enum(['InProgress', 'Completed']),

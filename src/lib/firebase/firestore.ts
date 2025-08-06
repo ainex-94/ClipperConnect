@@ -12,6 +12,7 @@ export interface UserProfile {
     email: string;
     photoURL: string;
     role: 'customer' | 'barber' | 'admin';
+    accountStatus: 'Pending' | 'Approved' | 'Rejected';
     createdAt: string;
     specialty?: string;
     rating?: number;
@@ -99,7 +100,8 @@ export async function getCollection(collectionName: string) {
 }
 
 export async function getAllUsers(): Promise<UserProfile[]> {
-    return getCollection("users");
+    const usersCollection = await getCollection("users");
+    return usersCollection.sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 }
 
 export async function getUsersWithRole(role: 'customer' | 'barber' | 'admin'): Promise<UserProfile[]> {
