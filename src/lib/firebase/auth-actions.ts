@@ -4,15 +4,15 @@
 import 'server-only';
 
 import { cookies } from 'next/headers';
-import { initializeApp, getApps, getApp, type App, type ServiceAccount } from 'firebase-admin/app';
+import { initializeApp, getApps, getApp, type App, type ServiceAccount, cert } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
 import { UserProfile } from './firestore';
 
-const serviceAccount: ServiceAccount = {
-    projectId: process.env.FIREBASE_PROJECT_ID,
-    clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-    privateKey: (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n'),
+const serviceAccount = {
+    project_id: process.env.FIREBASE_PROJECT_ID,
+    client_email: process.env.FIREBASE_CLIENT_EMAIL,
+    private_key: (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n'),
 }
 
 function getAdminApp(): App {
@@ -20,12 +20,8 @@ function getAdminApp(): App {
         return getApp();
     }
     return initializeApp({
-        credential: {
-            projectId: serviceAccount.projectId,
-            clientEmail: serviceAccount.clientEmail,
-            privateKey: serviceAccount.privateKey,
-        },
-        databaseURL: `https://${serviceAccount.projectId}.firebaseio.com`
+        credential: cert(serviceAccount),
+        databaseURL: `https://${serviceAccount.project_id}.firebaseio.com`
     });
 }
 
@@ -52,6 +48,8 @@ export async function getCurrentUser(): Promise<UserProfile | null> {
 
   } catch (error) {
     console.error('Error verifying session cookie:', error);
+    // Clear the invalid cookie
+    cookies().delete('__session');
     return null;
   }
 }
