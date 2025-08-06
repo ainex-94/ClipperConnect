@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { DollarSign, MoreHorizontal, TrendingUp, CreditCard, Loader2, CheckCircle } from 'lucide-react';
 import { format } from 'date-fns';
-import { type Appointment, getAllAppointments, updateAppointmentStatus } from '@/lib/firebase/firestore';
+import { type Appointment, getAllAppointments, updateAppointmentPayment } from '@/lib/firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 
 export default function BillingPage() {
@@ -37,7 +37,7 @@ export default function BillingPage() {
   }, [user, authLoading]);
 
   const handleMarkAsPaid = async (appointmentId: string) => {
-    const result = await updateAppointmentStatus(appointmentId, 'Paid');
+    const result = await updateAppointmentPayment(appointmentId, 'Paid');
     if (result.success) {
       toast({ title: 'Success', description: 'Appointment marked as paid.' });
       fetchAppointments(); // Refresh data
@@ -58,16 +58,16 @@ export default function BillingPage() {
   };
 
   const totalRevenue = appointments
-    .filter(a => a.paymentStatus === 'Paid' && a.price)
-    .reduce((sum, a) => sum + a.price!, 0);
+    .filter(a => a.paymentStatus === 'Paid' && a.amountPaid)
+    .reduce((sum, a) => sum + a.amountPaid!, 0);
   
   const pendingPayments = appointments
     .filter(a => a.paymentStatus === 'Unpaid' && a.price)
     .reduce((sum, a) => sum + a.price!, 0);
   
   const monthlyEarnings = appointments
-    .filter(a => a.paymentStatus === 'Paid' && new Date(a.dateTime).getMonth() === new Date().getMonth() && a.price)
-    .reduce((sum, a) => sum + a.price!, 0);
+    .filter(a => a.paymentStatus === 'Paid' && new Date(a.dateTime).getMonth() === new Date().getMonth() && a.amountPaid)
+    .reduce((sum, a) => sum + a.amountPaid!, 0);
 
   if (authLoading) {
     return <div className="flex justify-center items-center h-48"><Loader2 className="h-8 w-8 animate-spin" /></div>;
@@ -137,7 +137,7 @@ export default function BillingPage() {
                 <TableHead>Customer</TableHead>
                 <TableHead>Service</TableHead>
                 <TableHead>Date</TableHead>
-                <TableHead>Amount</TableHead>
+                <TableHead>Amount Paid</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead><span className="sr-only">Actions</span></TableHead>
               </TableRow>
@@ -148,7 +148,7 @@ export default function BillingPage() {
                   <TableCell className="font-medium">{appointment.customerName}</TableCell>
                   <TableCell>{appointment.service}</TableCell>
                   <TableCell>{format(new Date(appointment.dateTime), 'PPP')}</TableCell>
-                  <TableCell>PKR {appointment.price?.toLocaleString() || 'N/A'}</TableCell>
+                  <TableCell>PKR {appointment.amountPaid?.toLocaleString() || 'N/A'}</TableCell>
                   <TableCell>
                     <Badge variant={getStatusVariant(appointment.paymentStatus)}>{appointment.paymentStatus || 'N/A'}</Badge>
                   </TableCell>
