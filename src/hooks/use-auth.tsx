@@ -44,7 +44,8 @@ const createSession = async (firebaseUser: FirebaseUser) => {
       body: JSON.stringify({ idToken }),
     });
     if (!res.ok) {
-      throw new Error('Failed to create session');
+      const errorData = await res.json().catch(() => ({ error: 'Unknown server error' }));
+      throw new Error(errorData.error || 'Failed to create session');
     }
 }
 
