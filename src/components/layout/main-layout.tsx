@@ -5,16 +5,13 @@ import AppSidebar from "@/components/layout/sidebar";
 import AppHeader from "@/components/layout/header";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { usePathname } from "next/navigation";
-import { UserProfile } from "@/lib/firebase/firestore";
 
 const PUBLIC_ROUTES = ['/login', '/register'];
 
 export default function MainLayout({
   children,
-  serverUser
 }: {
   children: React.ReactNode;
-  serverUser: UserProfile | null;
 }) {
   const pathname = usePathname();
 
