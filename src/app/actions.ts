@@ -6,7 +6,7 @@ import {
   type SuggestRescheduleOptionsInput,
 } from "@/ai/flows/suggest-reschedule-options";
 import { db } from "@/lib/firebase/firebase";
-import { getDocument, getOrCreateChat, UserProfile } from "@/lib/firebase/firestore";
+import { getDocument, getOrCreateChat as getOrCreateChatFirestore, UserProfile } from "@/lib/firebase/firestore";
 import { addDoc, collection, serverTimestamp, doc, setDoc, updateDoc } from "firebase/firestore";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -102,6 +102,10 @@ export async function addAppointment(values: z.infer<typeof appointmentFormSchem
         console.error("Firestore Error:", error);
         return { error: "Failed to create appointment." };
     }
+}
+
+export async function getOrCreateChat(userId1: string, userId2: string) {
+  return getOrCreateChatFirestore(userId1, userId2);
 }
 
 const updateUserRoleSchema = z.object({

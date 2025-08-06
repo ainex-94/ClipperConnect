@@ -2,7 +2,7 @@
 // src/components/chat/chat-layout.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Sidebar, SidebarContent, SidebarHeader } from "@/components/ui/sidebar";
 import { ChatList } from "./chat-list";
 import { ChatWindow } from "./chat-window";
@@ -10,10 +10,24 @@ import { type Chat } from "@/lib/firebase/firestore";
 
 interface ChatLayoutProps {
     chats: Chat[];
+    defaultChatId?: string;
 }
 
-export function ChatLayout({ chats: initialChats }: ChatLayoutProps) {
+export function ChatLayout({ chats: initialChats, defaultChatId }: ChatLayoutProps) {
     const [selectedChat, setSelectedChat] = useState<Chat | null>(null);
+
+    useEffect(() => {
+        if (defaultChatId) {
+            const defaultChat = initialChats.find(chat => chat.id === defaultChatId);
+            if (defaultChat) {
+                setSelectedChat(defaultChat);
+            }
+        } else if (initialChats.length > 0 && !selectedChat) {
+            // Optionally select the first chat if none is selected
+            // setSelectedChat(initialChats[0]);
+        }
+    }, [defaultChatId, initialChats, selectedChat]);
+
 
     return (
         <div className="flex h-full w-full">

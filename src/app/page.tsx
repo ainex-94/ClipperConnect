@@ -10,13 +10,18 @@ import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/hooks/use-auth";
 import { getAppointmentsForUser, Appointment } from "@/lib/firebase/firestore";
 import { format } from 'date-fns';
-import { Loader2 } from 'lucide-react';
+import { Loader2, MessageSquare } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import Link from 'next/link';
+import { getOrCreateChat } from './actions';
+import { useRouter } from 'next/navigation';
 
 export default function DashboardPage() {
   const { user } = useAuth();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [upcomingAppointments, setUpcomingAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
   useEffect(() => {
     if (user) {
@@ -30,6 +35,7 @@ export default function DashboardPage() {
           .filter(app => {
             if (!app.dateTime) return false;
             const appDate = new Date(app.dateTime);
+            // Show appointments for today
             return (
               appDate.getDate() === today.getDate() &&
               appDate.getMonth() === today.getMonth() &&
@@ -46,6 +52,13 @@ export default function DashboardPage() {
       fetchAppointments();
     }
   }, [user]);
+
+  const handleStartChat = async (otherUserId: string) => {
+    if (!user) return;
+    const chatId = await getOrCreateChat(user.uid, otherUserId);
+    router.push(`/chat?chatId=${chatId}`);
+  }
+
 
   if (loading) {
     return <div className="flex items-center justify-center h-full"><Loader2 className="h-8 w-8 animate-spin" /></div>;
@@ -84,6 +97,7 @@ export default function DashboardPage() {
               {upcomingAppointments.length > 0 ? (
                 upcomingAppointments.map((appointment, index) => {
                   const otherPersonName = user.role === 'barber' ? appointment.customerName : appointment.barberName;
+                  const otherPersonId = user.role === 'barber' ? appointment.customerId : appointment.barberId;
                   const otherPersonPhoto = user.role === 'barber' ? appointment.customerPhotoURL : appointment.barberPhotoURL;
                   
                   return (
@@ -94,11 +108,19 @@ export default function DashboardPage() {
                         <AvatarFallback>{otherPersonName?.charAt(0)}</AvatarFallback>
                       </Avatar>
                       <div className="flex-1">
-                        <p className="font-medium">{otherPersonName}</p>
-                        <p className="text-sm text-muted-foreground">{appointment.service}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-semibold">{format(new Date(appointment.dateTime), "p")}</p>
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="font-medium">{otherPersonName}</p>
+                                <p className="text-sm text-muted-foreground">{appointment.service}</p>
+                            </div>
+                            <div className="text-right">
+                                <p className="font-semibold">{format(new Date(appointment.dateTime), "p")}</p>
+                            </div>
+                        </div>
+                        <Button variant="outline" size="sm" className="mt-2 w-full sm:w-auto" onClick={() => handleStartChat(otherPersonId)}>
+                            <MessageSquare className="mr-2 h-4 w-4" />
+                            Chat
+                        </Button>
                       </div>
                     </div>
                     {index < upcomingAppointments.length - 1 && <Separator className="mt-4" />}
