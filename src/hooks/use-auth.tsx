@@ -34,31 +34,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+    let unsubscribeFirestore: () => void;
+
+    const unsubscribeAuth = onAuthStateChanged(auth, (firebaseUser) => {
       if (firebaseUser) {
         const userRef = doc(db, 'users', firebaseUser.uid);
-        
-        // Use a one-time getDoc for the initial load to correctly manage the loading state
-        const docSnap = await getDoc(userRef);
-        if (docSnap.exists()) {
-           // Now, establish the real-time listener for updates
-           const unsubscribeFirestore = onSnapshot(userRef, (docSnap) => {
-             setUser({ id: docSnap.id, ...docSnap.data() } as UserProfile);
-           });
-           // Make sure to return the listener unsubscriber
-           // This might not be right, onAuthStateChanged doesn't expect a function back
-        }
-        setUser({ id: docSnap.id, ...docSnap.data() } as UserProfile);
-        setLoading(false);
-
+        unsubscribeFirestore = onSnapshot(userRef, (docSnap) => {
+          if (docSnap.exists()) {
+            setUser({ id: docSnap.id, ...docSnap.data() } as UserProfile);
+          } else {
+            // This case might happen if the user record is deleted from Firestore 
+            // but the auth session still exists.
+            setUser(null);
+          }
+          setLoading(false);
+        }, (error) => {
+            console.error("Firestore snapshot error:", error);
+            setUser(null);
+            setLoading(false);
+        });
       } else {
         setUser(null);
         setLoading(false);
+        if (unsubscribeFirestore) {
+            unsubscribeFirestore();
+        }
       }
     });
 
-    return () => unsubscribe();
-  }, []); 
+    return () => {
+        unsubscribeAuth();
+        if (unsubscribeFirestore) {
+            unsubscribeFirestore();
+        }
+    };
+  }, []);
   
   const createFirestoreUser = async (firebaseUser: FirebaseUser, role: 'customer' | 'barber' | 'admin', displayName?: string) => {
       const userRef = doc(db, "users", firebaseUser.uid);
