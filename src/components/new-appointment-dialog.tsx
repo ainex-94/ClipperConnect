@@ -1,3 +1,4 @@
+
 // src/components/new-appointment-dialog.tsx
 "use client";
 
@@ -50,13 +51,13 @@ interface User {
 }
 
 const services = [
-  "Haircut",
-  "Beard Trim",
-  "Haircut & Beard Trim",
-  "Shave",
-  "Kids Haircut",
-  "Fade",
-  "Hair Coloring"
+  { name: "Haircut", price: 1500 },
+  { name: "Beard Trim", price: 800 },
+  { name: "Haircut & Beard Trim", price: 2200 },
+  { name: "Shave", price: 1000 },
+  { name: "Kids Haircut", price: 1200 },
+  { name: "Fade", price: 1800 },
+  { name: "Hair Coloring", price: 3500 },
 ];
 
 export function NewAppointmentDialog() {
@@ -272,8 +273,8 @@ export function NewAppointmentDialog() {
                       </FormControl>
                       <SelectContent>
                         {services.map((service) => (
-                          <SelectItem key={service} value={service}>
-                            {service}
+                          <SelectItem key={service.name} value={service.name}>
+                            {service.name} - PKR {service.price.toLocaleString()}
                           </SelectItem>
                         ))}
                       </SelectContent>
