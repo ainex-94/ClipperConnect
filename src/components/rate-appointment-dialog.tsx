@@ -19,6 +19,7 @@ import { useToast } from "@/hooks/use-toast";
 import { rateAppointment } from "@/app/actions";
 import { cn } from "@/lib/utils";
 import { useNotification } from "@/hooks/use-notification";
+import { Textarea } from "./ui/textarea";
 
 interface RateAppointmentDialogProps {
   appointmentId: string;
@@ -33,6 +34,7 @@ export function RateAppointmentDialog({ appointmentId, ratedUserId, ratingField,
   const [isLoading, setIsLoading] = useState(false);
   const [rating, setRating] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
+  const [reviewText, setReviewText] = useState("");
   const { toast } = useToast();
   const { triggerNotification } = useNotification();
 
@@ -43,7 +45,7 @@ export function RateAppointmentDialog({ appointmentId, ratedUserId, ratingField,
     }
     
     setIsLoading(true);
-    const result = await rateAppointment({ appointmentId, ratedUserId, rating, ratingField });
+    const result = await rateAppointment({ appointmentId, ratedUserId, rating, ratingField, reviewText });
 
     if (result.error) {
       toast({ variant: "destructive", title: "Error", description: result.error });
@@ -71,21 +73,29 @@ export function RateAppointmentDialog({ appointmentId, ratedUserId, ratingField,
             How would you rate the service provided by {userNameToRate}?
           </DialogDescription>
         </DialogHeader>
-        <div className="flex justify-center items-center py-4 gap-2">
-          {[1, 2, 3, 4, 5].map((star) => (
-            <Star
-              key={star}
-              className={cn(
-                "h-10 w-10 cursor-pointer transition-colors",
-                (hoverRating >= star || rating >= star)
-                  ? "text-yellow-400 fill-yellow-400"
-                  : "text-gray-300"
-              )}
-              onClick={() => setRating(star)}
-              onMouseEnter={() => setHoverRating(star)}
-              onMouseLeave={() => setHoverRating(0)}
+        <div className="space-y-4 py-4">
+            <div className="flex justify-center items-center gap-2">
+            {[1, 2, 3, 4, 5].map((star) => (
+                <Star
+                key={star}
+                className={cn(
+                    "h-10 w-10 cursor-pointer transition-colors",
+                    (hoverRating >= star || rating >= star)
+                    ? "text-yellow-400 fill-yellow-400"
+                    : "text-gray-300"
+                )}
+                onClick={() => setRating(star)}
+                onMouseEnter={() => setHoverRating(star)}
+                onMouseLeave={() => setHoverRating(0)}
+                />
+            ))}
+            </div>
+             <Textarea
+                placeholder="Share your experience... (optional)"
+                value={reviewText}
+                onChange={(e) => setReviewText(e.target.value)}
+                rows={4}
             />
-          ))}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)} disabled={isLoading}>Cancel</Button>

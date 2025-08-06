@@ -14,6 +14,7 @@ import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious
 import Image from 'next/image';
 import { NearbyBarbersMap } from "@/components/nearby-barbers-map";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import Link from "next/link";
 
 export default function BarbersPage() {
   const { user } = useAuth();
@@ -56,59 +57,61 @@ export default function BarbersPage() {
               {barbers.map((barber) => {
                 const images = [barber.photoURL, ...(barber.shopImageUrls || [])];
                 return (
-                  <Card key={barber.id} className="flex flex-col">
-                    <CardHeader className="p-0">
-                      <Carousel className="w-full">
-                        <CarouselContent>
-                          {images.map((img, index) => (
-                            <CarouselItem key={index}>
-                              <div className="relative aspect-video">
-                                <Image
-                                  src={img}
-                                  alt={`Photo ${index + 1} for ${barber.displayName}`}
-                                  fill
-                                  className="object-cover rounded-t-lg"
-                                  data-ai-hint={index === 0 ? "person portrait" : "barbershop interior"}
-                                />
-                              </div>
-                            </CarouselItem>
-                          ))}
-                        </CarouselContent>
-                        {images.length > 1 && (
-                          <>
-                            <CarouselPrevious className="absolute left-2" />
-                            <CarouselNext className="absolute right-2" />
-                          </>
-                        )}
-                      </Carousel>
-                    </CardHeader>
-                    <div className="p-4 flex flex-col flex-grow">
-                      <div className="text-center mb-4">
-                        <CardTitle>{barber.displayName}</CardTitle>
-                        <CardDescription>{barber.specialty || 'All-rounder'}</CardDescription>
-                        <div className="flex items-center justify-center gap-1 text-yellow-500 mt-1">
-                          <Star className="w-4 h-4 fill-current" />
-                          <span>{barber.rating?.toFixed(1) || 'New'}</span>
+                  <Link key={barber.id} href={`/barbers/${barber.id}`} className="flex flex-col">
+                    <Card className="flex flex-col h-full hover:shadow-xl transition-shadow duration-300">
+                      <CardHeader className="p-0">
+                        <Carousel className="w-full">
+                          <CarouselContent>
+                            {images.map((img, index) => (
+                              <CarouselItem key={index}>
+                                <div className="relative aspect-video">
+                                  <Image
+                                    src={img}
+                                    alt={`Photo ${index + 1} for ${barber.displayName}`}
+                                    fill
+                                    className="object-cover rounded-t-lg"
+                                    data-ai-hint={index === 0 ? "person portrait" : "barbershop interior"}
+                                  />
+                                </div>
+                              </CarouselItem>
+                            ))}
+                          </CarouselContent>
+                          {images.length > 1 && (
+                            <>
+                              <CarouselPrevious className="absolute left-2" />
+                              <CarouselNext className="absolute right-2" />
+                            </>
+                          )}
+                        </Carousel>
+                      </CardHeader>
+                      <div className="p-4 flex flex-col flex-grow">
+                        <div className="text-center mb-4">
+                          <CardTitle>{barber.displayName}</CardTitle>
+                          <CardDescription>{barber.specialty || 'All-rounder'}</CardDescription>
+                          <div className="flex items-center justify-center gap-1 text-yellow-500 mt-1">
+                            <Star className="w-4 h-4 fill-current" />
+                            <span>{barber.rating?.toFixed(1) || 'New'}</span>
+                          </div>
                         </div>
+                        <CardContent className="flex-grow p-0">
+                          <div className="flex flex-col gap-2 text-sm text-muted-foreground">
+                            <div className="flex items-center gap-2">
+                              <Mail className="w-4 h-4" />
+                              <span>{barber.email}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Phone className="w-4 h-4" />
+                              <span>{barber.phone || '+1 234 567 890'}</span>
+                            </div>
+                          </div>
+                        </CardContent>
+                        <CardFooter className="flex flex-col sm:flex-row gap-2 pt-4 p-0">
+                            <ViewScheduleDialog barber={barber} />
+                            {user && <StartChatButton otherUserId={barber.id} />}
+                        </CardFooter>
                       </div>
-                      <CardContent className="flex-grow p-0">
-                        <div className="flex flex-col gap-2 text-sm text-muted-foreground">
-                          <div className="flex items-center gap-2">
-                            <Mail className="w-4 h-4" />
-                            <span>{barber.email}</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Phone className="w-4 h-4" />
-                            <span>{barber.phone || '+1 234 567 890'}</span>
-                          </div>
-                        </div>
-                      </CardContent>
-                      <CardFooter className="flex flex-col sm:flex-row gap-2 pt-4 p-0">
-                          <ViewScheduleDialog barber={barber} />
-                          {user && <StartChatButton otherUserId={barber.id} />}
-                      </CardFooter>
-                    </div>
-                  </Card>
+                    </Card>
+                  </Link>
                 )
               })}
               {barbers.length === 0 && (

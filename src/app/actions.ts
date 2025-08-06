@@ -1,4 +1,5 @@
 
+
 "use server";
 
 import {
@@ -267,6 +268,7 @@ const rateAppointmentSchema = z.object({
   ratedUserId: z.string().min(1),
   rating: z.number().min(1).max(5),
   ratingField: z.enum(['barberRating', 'customerRating']),
+  reviewText: z.string().optional(),
 });
 
 export async function rateAppointment(values: z.infer<typeof rateAppointmentSchema>) {
@@ -277,17 +279,24 @@ export async function rateAppointment(values: z.infer<typeof rateAppointmentSche
             error: "Invalid fields: " + validatedFields.error.errors.map(e => e.message).join(', '),
         };
     }
-    const { appointmentId, ratedUserId, rating, ratingField } = validatedFields.data;
+    const { appointmentId, ratedUserId, rating, ratingField, reviewText } = validatedFields.data;
 
     try {
         // Update the rating in the appointment document
         const appointmentRef = doc(db, "appointments", appointmentId);
-        await updateDoc(appointmentRef, { [ratingField]: rating });
+        
+        const updateData: { [key: string]: any } = { [ratingField]: rating };
+        if (reviewText) {
+            updateData.reviewText = reviewText;
+        }
+        
+        await updateDoc(appointmentRef, updateData);
 
         // Update the average rating for the user
         await updateAverageRating(ratedUserId);
 
         revalidatePath('/appointments');
+        revalidatePath(`/barbers/${ratedUserId}`);
         return { success: "Rating submitted successfully!" };
 
     } catch (error) {

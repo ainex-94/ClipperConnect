@@ -70,6 +70,7 @@ export interface Appointment {
   amountPaid?: number;
   barberRating?: number;
   customerRating?: number;
+  reviewText?: string;
 }
 
 export interface WalletTransaction {
@@ -140,6 +141,22 @@ export async function getAppointmentsForUser(userId: string): Promise<Appointmen
     const appointments = querySnapshot.docs.map(doc => safeJsonParse({ id: doc.id, ...doc.data() })) as Appointment[];
 
     // Sort client-side to avoid composite index requirement
+    appointments.sort((a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime());
+    
+    return appointments;
+}
+
+export async function getCompletedAppointmentsForBarber(barberId: string): Promise<Appointment[]> {
+    const q = query(
+        collection(db, "appointments"),
+        where('barberId', '==', barberId),
+        where('status', '==', 'Completed')
+    );
+    
+    const querySnapshot = await getDocs(q);
+    const appointments = querySnapshot.docs.map(doc => safeJsonParse({ id: doc.id, ...doc.data() })) as Appointment[];
+
+    // Sort by most recent first
     appointments.sort((a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime());
     
     return appointments;
