@@ -1,30 +1,18 @@
 // src/lib/firebase/auth-actions.ts
 'use server';
-import 'server-only';
-import { config } from 'dotenv';
-config();
-
 
 import { cookies } from 'next/headers';
-import { initializeApp, getApps, getApp, type App, type ServiceAccount, cert } from 'firebase-admin/app';
+import { initializeApp, getApps, getApp, type App } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
 import { UserProfile } from './firestore';
-
-const serviceAccount = {
-    project_id: process.env.FIREBASE_PROJECT_ID,
-    client_email: process.env.FIREBASE_CLIENT_EMAIL,
-    private_key: (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n'),
-}
 
 function getAdminApp(): App {
     if (getApps().length > 0) {
         return getApp();
     }
-    return initializeApp({
-        credential: cert(serviceAccount as ServiceAccount),
-        databaseURL: `https://${serviceAccount.project_id}.firebaseio.com`
-    });
+    // This will be automatically initialized by the environment
+    return initializeApp();
 }
 
 const app = getAdminApp();
