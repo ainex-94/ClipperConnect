@@ -142,7 +142,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             photoURL: firebaseUser.photoURL || `https://placehold.co/100x100.png?text=${(displayName || firebaseUser.displayName)?.charAt(0)}`,
             createdAt: new Date().toISOString(),
             role: role,
-            accountStatus: role === 'admin' ? 'Approved' : 'Pending', // Admins are auto-approved
+            accountStatus: role === 'admin' ? 'Approved' : 'Pending',
             coins: 0,
             walletBalance: 0,
             rating: 0,
@@ -152,10 +152,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             longitude: null,
         };
         await setDoc(userRef, newUserProfile);
-        toast({
-          title: "Registration Successful",
-          description: "Your account is now pending admin approval.",
-        });
+        
+        if (role !== 'admin') {
+            toast({
+                title: "Registration Successful",
+                description: "Your account is now pending admin approval.",
+            });
+        }
       } else {
         const existingUser = docSnap.data() as UserProfile;
         if (existingUser.accountStatus === 'Approved') {
