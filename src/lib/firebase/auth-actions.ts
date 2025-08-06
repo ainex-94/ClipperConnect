@@ -3,18 +3,29 @@
 import 'server-only';
 
 import { cookies } from 'next/headers';
-import { initializeApp, getApps, getApp, type App } from 'firebase-admin/app';
+import { initializeApp, getApps, getApp, type App, type ServiceAccount } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
 import { UserProfile } from './firestore';
 
+const serviceAccount: ServiceAccount = {
+    projectId: process.env.FIREBASE_PROJECT_ID,
+    clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+    privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+}
+
 function getAdminApp(): App {
-    // When running in a secure server environment, initializeApp() with no parameters
-    // will automatically discover service account credentials.
     if (getApps().length > 0) {
         return getApp();
     }
-    return initializeApp();
+    return initializeApp({
+        credential: {
+            projectId: serviceAccount.projectId,
+            clientEmail: serviceAccount.clientEmail,
+            privateKey: serviceAccount.privateKey,
+        },
+        databaseURL: `https://${serviceAccount.projectId}.firebaseio.com`
+    });
 }
 
 const app = getAdminApp();
