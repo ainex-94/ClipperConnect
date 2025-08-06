@@ -5,19 +5,15 @@
 import { ChatLayout } from "@/components/chat/chat-layout";
 import { getChats } from "@/lib/firebase/firestore";
 import { getCurrentUser } from "@/lib/firebase/auth-actions";
-import { redirect } from "next/navigation";
+import { redirect, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { type Chat } from "@/lib/firebase/firestore";
 
-interface ChatPageProps {
-  searchParams?: {
-    chatId?: string;
-  };
-}
-
-export default function ChatPage({ searchParams }: ChatPageProps) {
+export default function ChatPage() {
     const [chats, setChats] = useState<Chat[]>([]);
     const [loading, setLoading] = useState(true);
+    const searchParams = useSearchParams();
+    const chatId = searchParams.get('chatId');
     
     // Fetching user and chats on the client to ensure this component can use hooks.
     useEffect(() => {
@@ -43,7 +39,7 @@ export default function ChatPage({ searchParams }: ChatPageProps) {
       <main className="flex flex-col h-[calc(100vh-8rem)] sm:h-[calc(100vh-7rem)]">
         <ChatLayout 
             chats={chats} 
-            defaultChatId={searchParams?.chatId} 
+            defaultChatId={chatId || undefined}
         />
       </main>
     )
