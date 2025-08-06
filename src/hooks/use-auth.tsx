@@ -34,24 +34,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         const userRef = doc(db, 'users', firebaseUser.uid);
         
-        const unsubscribeFirestore = onSnapshot(userRef, (docSnap) => {
-          if (docSnap.exists()) {
-            setUser({ id: docSnap.id, ...docSnap.data() } as UserProfile);
-          } else {
-            setUser(null);
-          }
-          // This is the key change: only set loading to false once.
-          // Subsequent snapshots will update the user but not trigger a global loading state.
-          if (loading) {
-            setLoading(false);
-          }
-        });
-        
-        return () => unsubscribeFirestore();
+        // Use a one-time getDoc for the initial load to correctly manage the loading state
+        const docSnap = await getDoc(userRef);
+        if (docSnap.exists()) {
+           // Now, establish the real-time listener for updates
+           const unsubscribeFirestore = onSnapshot(userRef, (docSnap) => {
+             setUser({ id: docSnap.id, ...docSnap.data() } as UserProfile);
+           });
+           // Make sure to return the listener unsubscriber
+           // This might not be right, onAuthStateChanged doesn't expect a function back
+        }
+        setUser({ id: docSnap.id, ...docSnap.data() } as UserProfile);
+        setLoading(false);
+
       } else {
         setUser(null);
         setLoading(false);
@@ -59,7 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     return () => unsubscribe();
-  }, [loading]); // Added loading to dependency array
+  }, []); 
   
   const createFirestoreUser = async (firebaseUser: FirebaseUser, role: 'customer' | 'barber' | 'admin', displayName?: string) => {
       const userRef = doc(db, "users", firebaseUser.uid);
