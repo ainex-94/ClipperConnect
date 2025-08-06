@@ -11,6 +11,7 @@ import { useEffect, useState } from "react";
 import { UserProfile } from "@/lib/firebase/firestore";
 
 const PUBLIC_ROUTES = ['/login', '/register'];
+const REDIRECT_PATH_KEY = 'redirectPath';
 
 export default function MainLayout({
   children,
@@ -47,12 +48,8 @@ export default function MainLayout({
     
     // If not authenticated and trying to access a protected route, redirect to login.
     if (!user && !isPublicRoute) {
+      sessionStorage.setItem(REDIRECT_PATH_KEY, pathname);
       router.push('/login');
-    }
-
-    // If authenticated and trying to access a public route (like login), redirect to dashboard.
-    if (user && isPublicRoute) {
-      router.push('/');
     }
 
   }, [user, isInitialLoad, pathname, router]);

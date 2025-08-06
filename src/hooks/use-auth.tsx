@@ -57,6 +57,8 @@ const clearSession = async () => {
     }
 }
 
+const REDIRECT_PATH_KEY = 'redirectPath';
+
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -108,6 +110,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
   
+  const handleAuthSuccess = async (firebaseUser: FirebaseUser) => {
+      await createSession(firebaseUser);
+      const redirectPath = sessionStorage.getItem(REDIRECT_PATH_KEY);
+      sessionStorage.removeItem(REDIRECT_PATH_KEY);
+      router.push(redirectPath || "/");
+  }
+
   const createFirestoreUser = async (firebaseUser: FirebaseUser, role: 'customer' | 'barber' | 'admin', displayName?: string) => {
       const userRef = doc(db, "users", firebaseUser.uid);
       const docSnap = await getDoc(userRef);
@@ -137,8 +146,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             description: "Welcome back!",
         });
       }
-
-      await createSession(firebaseUser);
+      
+      await handleAuthSuccess(firebaseUser);
   }
 
   const loginWithGoogle = async (role: 'customer' | 'barber' = 'customer') => {
@@ -178,7 +187,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     try {
         const result = await signInWithEmailAndPassword(auth, email, pass);
-        await createSession(result.user);
+        await handleAuthSuccess(result.user);
     } catch (error: any) {
         console.error("Error during Email/Password sign-in:", error);
         toast({

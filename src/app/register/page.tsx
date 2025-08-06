@@ -1,3 +1,4 @@
+
 // src/app/register/page.tsx
 "use client";
 
@@ -57,7 +58,9 @@ export default function RegisterPage() {
 
   useEffect(() => {
     if (user) {
-      router.push("/");
+      const redirectPath = sessionStorage.getItem('redirectPath');
+      sessionStorage.removeItem('redirectPath');
+      router.push(redirectPath || "/");
     }
   }, [user, router]);
   
