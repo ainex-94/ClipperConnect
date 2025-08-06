@@ -39,7 +39,9 @@ export async function getCurrentUser(): Promise<UserProfile | null> {
   } catch (error) {
     console.error('Error verifying session cookie:', error);
     // Clear the invalid cookie
-    cookies().delete('__session');
+    (await
+      // Clear the invalid cookie
+      cookies()).delete('__session');
     return null;
   }
 }
@@ -47,7 +49,7 @@ export async function getCurrentUser(): Promise<UserProfile | null> {
 export async function createSessionCookie(idToken: string) {
     const expiresIn = 60 * 60 * 24 * 5 * 1000; // 5 days
     const sessionCookie = await auth.createSessionCookie(idToken, { expiresIn });
-    cookies().set('__session', sessionCookie, {
+    (await cookies()).set('__session', sessionCookie, {
         maxAge: expiresIn,
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
@@ -56,5 +58,5 @@ export async function createSessionCookie(idToken: string) {
 }
 
 export async function clearSessionCookie() {
-    cookies().delete('__session');
+    (await cookies()).delete('__session');
 }

@@ -4,31 +4,29 @@
 
 import { ChatLayout } from "@/components/chat/chat-layout";
 import { getChats } from "@/lib/firebase/firestore";
-import { getCurrentUser } from "@/lib/firebase/auth-actions";
+import { useAuth } from "@/hooks/use-auth";
 import { redirect, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { type Chat } from "@/lib/firebase/firestore";
 
 export default function ChatPage() {
+    const { user } = useAuth();
     const [chats, setChats] = useState<Chat[]>([]);
     const [loading, setLoading] = useState(true);
     const searchParams = useSearchParams();
     const chatId = searchParams.get('chatId');
     
-    // Fetching user and chats on the client to ensure this component can use hooks.
     useEffect(() => {
         async function fetchData() {
-            const currentUser = await getCurrentUser();
-            if (!currentUser) {
-                redirect('/login');
-                return;
+            if (user) {
+              setLoading(true);
+              const userChats = await getChats(user.uid);
+              setChats(userChats);
+              setLoading(false);
             }
-            const userChats = await getChats(currentUser.uid);
-            setChats(userChats);
-            setLoading(false);
         }
         fetchData();
-    }, []);
+    }, [user]);
 
 
     if (loading) {
