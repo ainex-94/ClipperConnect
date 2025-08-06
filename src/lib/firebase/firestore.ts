@@ -1,7 +1,7 @@
 
 'use server';
 
-import { collection, getDocs, getDoc, doc, query, where, DocumentData, Timestamp, serverTimestamp, addDoc, setDoc, orderBy, limit, updateDoc, or } from 'firebase/firestore';
+import { collection, getDocs, getDoc, doc, query, where, DocumentData, Timestamp, serverTimestamp, addDoc, setDoc, orderBy, limit, updateDoc, or, increment } from 'firebase/firestore';
 import { db } from '@/lib/firebase/firebase';
 
 // Type Definitions
@@ -22,7 +22,8 @@ export interface UserProfile {
             start: string;
             end: string;
         } | null
-    }
+    },
+    coins?: number;
 }
 
 export interface Message {

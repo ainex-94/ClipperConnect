@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -11,7 +12,7 @@ import {
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Search, LogIn, LogOut } from "lucide-react";
+import { Search, LogIn, LogOut, Coins } from "lucide-react";
 import { Input } from "../ui/input";
 import { useAuth } from "@/hooks/use-auth";
 import Link from "next/link";
@@ -36,6 +37,10 @@ export default function AppHeader() {
       <div className="flex items-center gap-4">
         {user ? (
           <>
+            <div className="flex items-center gap-2 text-sm font-semibold text-yellow-500">
+              <Coins className="h-5 w-5" />
+              <span>{(user.coins || 0).toLocaleString()}</span>
+            </div>
             <NewAppointmentDialog />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

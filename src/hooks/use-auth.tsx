@@ -36,19 +36,6 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const createSession = async (firebaseUser: FirebaseUser) => {
-    const idToken = await getIdToken(firebaseUser);
-    const res = await fetch('/api/auth/session', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ idToken }),
-    });
-    if (!res.ok) {
-      console.warn('Failed to create session cookie. App is in client-only auth mode.');
-    }
-}
-
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -100,8 +87,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
   
   const handleAuthSuccess = async (firebaseUser: FirebaseUser) => {
-      await createSession(firebaseUser);
-      router.push("/");
+      const redirectPath = sessionStorage.getItem('redirectPath') || '/';
+      sessionStorage.removeItem('redirectPath');
+      router.push(redirectPath);
   }
 
   const createFirestoreUser = async (firebaseUser: FirebaseUser, role: 'customer' | 'barber' | 'admin', displayName?: string) => {
@@ -116,6 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             photoURL: firebaseUser.photoURL || `https://placehold.co/100x100.png?text=${(displayName || firebaseUser.displayName)?.charAt(0)}`,
             createdAt: new Date().toISOString(),
             role: role,
+            coins: 0,
         };
         await setDoc(userRef, newUserProfile);
         toast({

@@ -10,7 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/hooks/use-auth";
 import { getAppointmentsForUser, Appointment } from "@/lib/firebase/firestore";
 import { format } from 'date-fns';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Coins } from 'lucide-react';
 import { StartChatButton } from '@/components/start-chat-button';
 
 export default function DashboardPage() {
@@ -19,11 +19,14 @@ export default function DashboardPage() {
   const [upcomingAppointments, setUpcomingAppointments] = useState<Appointment[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
 
+  const coins = user?.coins || 0;
+  const coinValuePKR = (coins / 1000) * 5;
+
   useEffect(() => {
     if (user) {
       const fetchAppointments = async () => {
         setDataLoading(true);
-        const userAppointments = await getAppointmentsForUser(user.uid, user.role);
+        const userAppointments = await getAppointmentsForUser(user.uid);
         setAppointments(userAppointments);
 
         const today = new Date();
@@ -80,6 +83,18 @@ export default function DashboardPage() {
       )}
 
       <div className={!user || user.role === 'customer' ? "lg:col-span-3" : "lg:col-span-1"}>
+        {user && (
+          <Card className="mb-6">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Your Coins</CardTitle>
+              <Coins className="h-4 w-4 text-yellow-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{coins.toLocaleString()}</div>
+              <p className="text-xs text-muted-foreground">≈ PKR {coinValuePKR.toFixed(2)}</p>
+            </CardContent>
+          </Card>
+        )}
         <Card>
           <CardHeader>
             <CardTitle>Upcoming Appointments</CardTitle>

@@ -7,7 +7,7 @@ import {
 } from "@/ai/flows/suggest-reschedule-options";
 import { db } from "@/lib/firebase/firebase";
 import { getDocument, getOrCreateChat as getOrCreateChatFirestore, UserProfile, Appointment } from "@/lib/firebase/firestore";
-import { addDoc, collection, serverTimestamp, doc, setDoc, updateDoc } from "firebase/firestore";
+import { addDoc, collection, serverTimestamp, doc, setDoc, updateDoc, increment } from "firebase/firestore";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
@@ -183,15 +183,35 @@ export async function recordPayment(values: z.infer<typeof recordPaymentSchema>)
 
     try {
         const appointmentRef = doc(db, "appointments", values.appointmentId);
+        const appointmentSnap = await getDoc(appointmentRef);
+
+        if (!appointmentSnap.exists()) {
+            return { error: "Appointment not found." };
+        }
+        const appointment = appointmentSnap.data() as Appointment;
+
+        // Update appointment
         await updateDoc(appointmentRef, { 
             amountPaid: values.amountPaid,
             paymentStatus: 'Paid',
             status: 'Completed' // Ensure status is completed
         });
+
+        // Award coins
+        const customerRef = doc(db, "users", appointment.customerId);
+        const barberRef = doc(db, "users", appointment.barberId);
+
+        // Award 100 coins per 100 PKR for customer, 50 coins per 100 PKR for barber
+        const customerCoins = Math.floor(values.amountPaid / 100) * 100;
+        const barberCoins = Math.floor(values.amountPaid / 100) * 50;
+
+        await updateDoc(customerRef, { coins: increment(customerCoins) });
+        await updateDoc(barberRef, { coins: increment(barberCoins) });
         
         revalidatePath('/appointments');
         revalidatePath('/billing');
-        return { success: `Payment of ${values.amountPaid} recorded successfully!` };
+        revalidatePath('/'); // For dashboard coin display
+        return { success: `Payment of ${values.amountPaid} recorded successfully! ${customerCoins} coins awarded to customer, ${barberCoins} to barber.` };
 
     } catch (error) {
         console.error("Firestore Error:", error);
