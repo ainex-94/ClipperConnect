@@ -78,11 +78,11 @@ export async function getCollection(collectionName: string) {
     return querySnapshot.docs.map(doc => safeJsonParse({ id: doc.id, ...doc.data() }));
 }
 
-export async function getAllUsers() {
+export async function getAllUsers(): Promise<UserProfile[]> {
     return getCollection("users");
 }
 
-export async function getUsersWithRole(role: 'customer' | 'barber') {
+export async function getUsersWithRole(role: 'customer' | 'barber' | 'admin'): Promise<UserProfile[]> {
     const q = query(collection(db, "users"), where("role", "==", role));
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(doc => safeJsonParse({ id: doc.id, ...doc.data() }));
@@ -108,23 +108,15 @@ export async function getDocument(collectionName: string, docId: string) {
     }
 }
 
-export async function getAppointmentsForUser(userId: string, userRole: UserProfile['role']): Promise<Appointment[]> {
-    let q;
-    if (userRole === 'admin') {
-        // Admin sees all appointments
-        q = query(collection(db, "appointments"), orderBy('dateTime', 'desc'));
-    } else {
-        // Customers and Barbers see appointments where they are either the customer or the barber.
-        // This handles cases where a barber might also be a customer of another barber.
-        q = query(
-            collection(db, "appointments"),
-            or(
-                where('customerId', '==', userId),
-                where('barberId', '==', userId)
-            )
-        );
-    }
-
+export async function getAppointmentsForUser(userId: string): Promise<Appointment[]> {
+    const q = query(
+        collection(db, "appointments"),
+        or(
+            where('customerId', '==', userId),
+            where('barberId', '==', userId)
+        )
+    );
+    
     const querySnapshot = await getDocs(q);
     const appointments = querySnapshot.docs.map(doc => safeJsonParse({ id: doc.id, ...doc.data() })) as Appointment[];
 
