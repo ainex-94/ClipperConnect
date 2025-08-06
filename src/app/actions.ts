@@ -107,6 +107,48 @@ export async function addAppointment(values: z.infer<typeof appointmentFormSchem
     }
 }
 
+const editAppointmentFormSchema = appointmentFormSchema.extend({
+    appointmentId: z.string().min(1),
+});
+
+export async function updateAppointment(values: z.infer<typeof editAppointmentFormSchema>) {
+    const validatedFields = editAppointmentFormSchema.safeParse(values);
+
+    if (!validatedFields.success) {
+        return {
+            error: "Invalid fields: " + validatedFields.error.errors.map(e => e.message).join(', '),
+        };
+    }
+
+    const { appointmentId, customerId, barberId, ...rest } = validatedFields.data;
+    
+    const customerDoc = await getDocument("users", customerId);
+    const barberDoc = await getDocument("users", barberId);
+
+    if (!customerDoc || !barberDoc) {
+        return { error: "Invalid customer or barber selected." };
+    }
+    
+    try {
+        const appointmentRef = doc(db, "appointments", appointmentId);
+        await updateDoc(appointmentRef, {
+            ...rest,
+            customerId,
+            barberId,
+            customerName: customerDoc.displayName,
+            customerPhotoURL: customerDoc.photoURL,
+            barberName: barberDoc.displayName,
+            barberPhotoURL: barberDoc.photoURL,
+        });
+        
+        revalidatePath('/appointments');
+        return { success: "Appointment updated successfully!" };
+    } catch (error) {
+        console.error("Firestore Error:", error);
+        return { error: "Failed to update appointment." };
+    }
+}
+
 export async function getOrCreateChat(userId1: string, userId2: string) {
   return getOrCreateChatFirestore(userId1, userId2);
 }

@@ -17,6 +17,7 @@ import { StartChatButton } from "@/components/start-chat-button";
 import { StartEndJobDialog } from "@/components/start-end-job-dialog";
 import { EnterPaymentDialog } from "@/components/enter-payment-dialog";
 import { RateAppointmentDialog } from "@/components/rate-appointment-dialog";
+import { EditAppointmentDialog } from "@/components/edit-appointment-dialog";
 
 export default function AppointmentsPage() {
   const { user, loading: authLoading } = useAuth();
@@ -65,7 +66,7 @@ export default function AppointmentsPage() {
             Manage all your upcoming and past appointments.
           </CardDescription>
         </div>
-        {user && <NewAppointmentDialog />}
+        {user && <NewAppointmentDialog onSuccess={fetchAppointments} />}
       </CardHeader>
       <CardContent>
         {loading ? (
@@ -90,6 +91,7 @@ export default function AppointmentsPage() {
                const otherUserId = user.uid === appointment.barberId ? appointment.customerId : appointment.barberId;
                const isBarber = user.role === 'barber';
                const isCustomer = user.role === 'customer';
+               const isAdmin = user.role === 'admin';
                
                return (
                 <TableRow key={appointment.id}>
@@ -113,7 +115,9 @@ export default function AppointmentsPage() {
                                 <DropdownMenuItem asChild>
                                     <StartChatButton otherUserId={otherUserId} variant="ghost" className="w-full justify-start gap-2" />
                                 </DropdownMenuItem>
-                                <DropdownMenuItem>Edit</DropdownMenuItem>
+                                {(isAdmin || isBarber) && (
+                                  <EditAppointmentDialog appointment={appointment} onSuccess={fetchAppointments} />
+                                )}
                                 
                                 {isBarber && (
                                   <>

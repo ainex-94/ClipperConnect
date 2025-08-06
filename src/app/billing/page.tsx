@@ -1,3 +1,4 @@
+
 // src/app/billing/page.tsx
 'use client';
 
@@ -12,6 +13,7 @@ import { DollarSign, MoreHorizontal, TrendingUp, CreditCard, Loader2, CheckCircl
 import { format } from 'date-fns';
 import { type Appointment, getAllAppointments, updateAppointmentPayment } from '@/lib/firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
+import { InvoiceDialog } from '@/components/invoice-dialog';
 
 export default function BillingPage() {
   const { user, loading: authLoading } = useAuth();
@@ -167,7 +169,7 @@ export default function BillingPage() {
                             Mark as Paid
                           </DropdownMenuItem>
                         )}
-                        <DropdownMenuItem>View Invoice</DropdownMenuItem>
+                        <InvoiceDialog appointment={appointment} />
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>

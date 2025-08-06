@@ -61,7 +61,11 @@ const services = [
   { name: "Hair Coloring", price: 3500 },
 ];
 
-export function NewAppointmentDialog() {
+interface NewAppointmentDialogProps {
+  onSuccess: () => void;
+}
+
+export function NewAppointmentDialog({ onSuccess }: NewAppointmentDialogProps) {
   const { toast } = useToast();
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
@@ -125,6 +129,7 @@ export function NewAppointmentDialog() {
         description: "New appointment has been created.",
       });
       setOpen(false);
+      onSuccess();
       form.reset();
     }
   }
