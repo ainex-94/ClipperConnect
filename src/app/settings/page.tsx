@@ -16,7 +16,7 @@ import { doc, updateDoc, getDoc, arrayUnion, arrayRemove } from "firebase/firest
 import { db } from "@/lib/firebase/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect, useRef } from "react";
-import { Loader2, Camera, Upload, X, MapPin } from "lucide-react";
+import { Loader2, Camera, Upload, X, MapPin, LocateFixed } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { uploadImage } from "@/lib/firebase/storage";
 import Image from "next/image";
@@ -38,6 +38,7 @@ export default function SettingsPage() {
   const [shopImageUrls, setShopImageUrls] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
+  const [isFetchingLocation, setIsFetchingLocation] = useState(false);
   const [notificationPrefs, setNotificationPrefs] = useState({
     appointments: true,
     reschedules: false,
@@ -154,6 +155,58 @@ export default function SettingsPage() {
       toast({ variant: "destructive", title: "Error", description: "Failed to remove shop photo." });
     }
   };
+  
+  const handleFetchLocation = () => {
+    if (!navigator.geolocation) {
+      toast({ variant: 'destructive', title: 'Geolocation Error', description: 'Geolocation is not supported by your browser.' });
+      return;
+    }
+
+    setIsFetchingLocation(true);
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+        const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+        if (!apiKey) {
+           toast({ variant: 'destructive', title: 'Configuration Error', description: 'Google Maps API Key is missing.' });
+           setIsFetchingLocation(false);
+           return;
+        }
+
+        try {
+          const response = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${apiKey}`);
+          const data = await response.json();
+          if (data.status === 'OK' && data.results[0]) {
+            setFormData(prev => ({
+              ...prev,
+              address: data.results[0].formatted_address,
+              latitude: latitude.toString(),
+              longitude: longitude.toString(),
+            }));
+            toast({ title: 'Location Found', description: 'Address and coordinates have been updated.' });
+          } else {
+             throw new Error(data.error_message || 'No results found.');
+          }
+        } catch (error) {
+           console.error('Geocoding error:', error);
+           toast({ variant: 'destructive', title: 'Geocoding Error', description: 'Could not fetch address. Please enter manually.' });
+           // Still set lat/lng even if address fetch fails
+            setFormData(prev => ({
+              ...prev,
+              latitude: latitude.toString(),
+              longitude: longitude.toString(),
+            }));
+        } finally {
+            setIsFetchingLocation(false);
+        }
+      },
+      (error) => {
+        toast({ variant: 'destructive', title: 'Geolocation Error', description: error.message });
+        setIsFetchingLocation(false);
+      }
+    );
+  };
+
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { id, value } = e.target;
@@ -306,7 +359,13 @@ export default function SettingsPage() {
             <div className="md:col-span-2">
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2"><MapPin className="h-5 w-5"/> Address</CardTitle>
+                  <div className="flex justify-between items-center">
+                    <CardTitle className="flex items-center gap-2"><MapPin className="h-5 w-5"/> Address</CardTitle>
+                     <Button variant="outline" size="sm" onClick={handleFetchLocation} disabled={isFetchingLocation}>
+                        {isFetchingLocation ? <Loader2 className="h-4 w-4 animate-spin" /> : <LocateFixed className="h-4 w-4" />}
+                        <span className="ml-2 hidden sm:inline">Fetch My Location</span>
+                    </Button>
+                  </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
@@ -325,7 +384,7 @@ export default function SettingsPage() {
                   </div>
                 </CardContent>
                 <CardFooter className="border-t px-6 py-4">
-                    <Button onClick={handleSaveChanges} disabled={loading || isUploading}>
+                    <Button onClick={handleSaveChanges} disabled={loading || isUploading || isFetchingLocation}>
                         {(loading || isUploading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         Save Location
                     </Button>
