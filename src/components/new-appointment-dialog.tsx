@@ -35,11 +35,10 @@ import {
 } from "@/components/ui/select";
 import { PlusCircle, Loader2 } from "lucide-react";
 import { getCustomers, getBarbers, UserProfile } from "@/lib/firebase/firestore";
-import { useAuth } from "@/hooks/use-auth";
 
 const formSchema = z.object({
-  customerId: z.string({ required_error: "Please select a customer." }),
-  barberId: z.string({ required_error: "Please select a barber." }),
+  customerId: z.string().min(1, "Please select a customer."),
+  barberId: z.string().min(1, "Please select a barber."),
   service: z.string().min(2, "Service must be at least 2 characters.").max(50),
   dateTime: z.string().min(1, "Please select a date and time."),
 });
@@ -51,58 +50,29 @@ interface User {
 
 export function NewAppointmentDialog() {
   const { toast } = useToast();
-  const { user: currentUser } = useAuth();
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [customers, setCustomers] = useState<User[]>([]);
-  const [barbers, setBarbers] = useState<User[]>([]);
 
   useEffect(() => {
     if (open) {
       const fetchUsers = async () => {
         setIsLoading(true);
-        try {
-            // Admins can book for any customer, customers book for themselves
-            const customerData = currentUser?.role === 'admin' ? await getCustomers() : (currentUser ? [currentUser] : []);
-            const barberData = await getBarbers();
-            setCustomers(customerData as User[]);
-            setBarbers(barberData as User[]);
-        } catch (error) {
-            console.error("Failed to fetch users:", error);
-            toast({
-                variant: "destructive",
-                title: "Error",
-                description: "Could not load user data. Please try again later."
-            });
-        } finally {
-            setIsLoading(false);
-        }
+        const customerData = await getCustomers();
+        setCustomers(customerData as User[]);
+        setIsLoading(false);
       };
       fetchUsers();
     }
-  }, [open, currentUser, toast]);
+  }, [open]);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       service: "Haircut",
       dateTime: new Date(new Date().getTime() + 60 * 60 * 1000).toISOString().substring(0, 16), // 1 hour from now
-      customerId: currentUser?.role === 'customer' ? currentUser.uid : undefined,
     },
   });
-
-  // Reset form when current user changes and dialog is open
-  useEffect(() => {
-    if (currentUser) {
-      form.reset({
-        service: "Haircut",
-        dateTime: new Date(new Date().getTime() + 60 * 60 * 1000).toISOString().substring(0, 16),
-        customerId: currentUser?.role === 'customer' ? currentUser.uid : undefined,
-        barberId: undefined,
-      });
-    }
-  }, [currentUser, form, open]);
-
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
@@ -148,7 +118,7 @@ export function NewAppointmentDialog() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Customer</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value} disabled={currentUser?.role === 'customer' || isLoading}>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select a customer" />
@@ -172,18 +142,16 @@ export function NewAppointmentDialog() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Barber</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value} disabled={isLoading}>
+                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select a barber" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {barbers.length > 0 ? barbers.map((barber) => (
-                        <SelectItem key={barber.id} value={barber.id}>
-                          {barber.displayName}
-                        </SelectItem>
-                      )) : <SelectItem value="loading" disabled>Loading barbers...</SelectItem>}
+                       {/* This needs to be populated */}
+                      <SelectItem value="barber1">Barber 1</SelectItem>
+                      <SelectItem value="barber2">Barber 2</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -197,7 +165,7 @@ export function NewAppointmentDialog() {
                 <FormItem>
                   <FormLabel>Service</FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g., Haircut" {...field} disabled={isLoading}/>
+                    <Input placeholder="e.g., Haircut" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -210,7 +178,7 @@ export function NewAppointmentDialog() {
                 <FormItem>
                   <FormLabel>Date & Time</FormLabel>
                   <FormControl>
-                    <Input type="datetime-local" {...field} disabled={isLoading}/>
+                    <Input type="datetime-local" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

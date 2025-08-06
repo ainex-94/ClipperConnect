@@ -36,7 +36,7 @@ export default function AppHeader() {
       <div className="flex items-center gap-4">
         {user ? (
           <>
-            {(user.role === 'customer' || user.role === 'admin') && <NewAppointmentDialog />}
+            <NewAppointmentDialog />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-10 w-10 rounded-full">
