@@ -1,3 +1,4 @@
+
 // src/app/user-management/page.tsx
 'use client';
 
@@ -5,11 +6,12 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getAllUsers, UserProfile } from "@/lib/firebase/firestore";
 import { format } from 'date-fns';
 import { RoleSwitcher } from "./_components/role-switcher";
 import { Loader2 } from "lucide-react";
+import { DataTable } from "@/components/ui/data-table";
+import { type ColumnDef } from "@tanstack/react-table";
 
 export default function UserManagementPage() {
     const { user } = useAuth();
@@ -43,6 +45,33 @@ export default function UserManagementPage() {
       );
     }
 
+    const columns: ColumnDef<UserProfile>[] = [
+      {
+        accessorKey: 'displayName',
+        header: 'User',
+        cell: ({ row }) => (
+          <div className="flex items-center gap-3">
+            <Avatar>
+              <AvatarImage data-ai-hint="person portrait" src={row.original.photoURL} />
+              <AvatarFallback>{row.original.displayName?.split(' ').map(n => n[0]).join('')}</AvatarFallback>
+            </Avatar>
+            <span className="font-medium">{row.original.displayName}</span>
+          </div>
+        )
+      },
+      { accessorKey: 'email', header: 'Email' },
+      {
+        accessorKey: 'role',
+        header: 'Role',
+        cell: ({ row }) => <RoleSwitcher userId={row.original.id} currentRole={row.original.role} />
+      },
+      {
+        accessorKey: 'createdAt',
+        header: 'Member Since',
+        cell: ({ row }) => <div className="text-right">{format(new Date(row.original.createdAt), 'PPP')}</div>
+      }
+    ];
+
   return (
     <Card>
       <CardHeader>
@@ -57,43 +86,13 @@ export default function UserManagementPage() {
               <Loader2 className="h-8 w-8 animate-spin" />
             </div>
         ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>User</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead className="text-right">Member Since</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {users.map((listUser) => (
-              <TableRow key={listUser.id}>
-                <TableCell>
-                  <div className="flex items-center gap-3">
-                    <Avatar>
-                      <AvatarImage data-ai-hint="person portrait" src={listUser.photoURL} />
-                      <AvatarFallback>{listUser.displayName?.split(' ').map(n => n[0]).join('')}</AvatarFallback>
-                    </Avatar>
-                    <span className="font-medium">{listUser.displayName}</span>
-                  </div>
-                </TableCell>
-                <TableCell>{listUser.email}</TableCell>
-                <TableCell>
-                    <RoleSwitcher userId={listUser.id} currentRole={listUser.role} />
-                </TableCell>
-                <TableCell className="text-right">{format(new Date(listUser.createdAt), 'PPP')}</TableCell>
-              </TableRow>
-            ))}
-             {users.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={4} className="text-center h-24">
-                  No users found.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
+          <DataTable
+            columns={columns}
+            data={users}
+            filterColumn="displayName"
+            filterPlaceholder="Filter by user name..."
+            emptyState="No users found."
+          />
         )}
       </CardContent>
     </Card>

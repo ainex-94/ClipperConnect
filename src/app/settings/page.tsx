@@ -16,7 +16,7 @@ import { doc, updateDoc, getDoc, arrayUnion, arrayRemove } from "firebase/firest
 import { db } from "@/lib/firebase/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect, useRef } from "react";
-import { Loader2, Camera, Upload, Trash2, X } from "lucide-react";
+import { Loader2, Camera, Upload, X, MapPin } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { uploadImage } from "@/lib/firebase/storage";
 import Image from "next/image";
@@ -29,7 +29,10 @@ export default function SettingsPage() {
   const [formData, setFormData] = useState({
     displayName: "",
     email: "",
-    bio: ""
+    bio: "",
+    address: "",
+    latitude: "",
+    longitude: ""
   });
   const [availability, setAvailability] = useState<Record<string, { start: string; end: string; enabled: boolean }>>({});
   const [shopImageUrls, setShopImageUrls] = useState<string[]>([]);
@@ -44,7 +47,10 @@ export default function SettingsPage() {
       setFormData({
         displayName: user.displayName || "",
         email: user.email || "",
-        bio: user.bio || "" 
+        bio: user.bio || "",
+        address: user.address || "",
+        latitude: user.latitude?.toString() || "",
+        longitude: user.longitude?.toString() || ""
       });
 
       if (user.role === 'barber') {
@@ -53,7 +59,13 @@ export default function SettingsPage() {
            const docSnap = await getDoc(userRef);
            if (docSnap.exists()) {
              const userData = docSnap.data();
-             setFormData(prev => ({...prev, bio: userData.bio || ""}));
+             setFormData(prev => ({
+                 ...prev, 
+                 bio: userData.bio || "",
+                 address: userData.address || "",
+                 latitude: userData.latitude?.toString() || "",
+                 longitude: userData.longitude?.toString() || ""
+            }));
              setShopImageUrls(userData.shopImageUrls || []);
              
              const initialAvailability: any = {};
@@ -167,6 +179,9 @@ export default function SettingsPage() {
       };
 
       if (user.role === 'barber') {
+        updateData.address = formData.address;
+        updateData.latitude = parseFloat(formData.latitude) || null;
+        updateData.longitude = parseFloat(formData.longitude) || null;
         updateData.availability = {};
         daysOfWeek.forEach(day => {
           if (availability[day]?.enabled) {
@@ -263,6 +278,42 @@ export default function SettingsPage() {
       
       {user.role === 'barber' && (
         <>
+        <Separator />
+          <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
+            <div className="md:col-span-1">
+              <h2 className="text-xl font-semibold">Shop Location</h2>
+              <p className="text-sm text-muted-foreground">Let customers find you on the map.</p>
+            </div>
+            <div className="md:col-span-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2"><MapPin className="h-5 w-5"/> Address</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="address">Full Address</Label>
+                    <Input id="address" value={formData.address} onChange={handleInputChange} placeholder="e.g., 123 Barber Street, Shop #4" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="latitude">Latitude</Label>
+                      <Input id="latitude" value={formData.latitude} onChange={handleInputChange} placeholder="e.g., 24.8607" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="longitude">Longitude</Label>
+                      <Input id="longitude" value={formData.longitude} onChange={handleInputChange} placeholder="e.g., 67.0011" />
+                    </div>
+                  </div>
+                </CardContent>
+                <CardFooter className="border-t px-6 py-4">
+                    <Button onClick={handleSaveChanges} disabled={loading || isUploading}>
+                        {(loading || isUploading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Save Location
+                    </Button>
+                </CardFooter>
+              </Card>
+            </div>
+          </div>
         <Separator />
           <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
             <div className="md:col-span-1">

@@ -26,6 +26,9 @@ export interface UserProfile {
     },
     coins?: number;
     shopImageUrls?: string[];
+    address?: string;
+    latitude?: number | null;
+    longitude?: number | null;
 }
 
 export interface Message {
@@ -231,8 +234,6 @@ export async function updateAverageRating(userId: string) {
         }
 
         const userData = userDoc.data() as UserProfile;
-        const currentTotalRatings = userData.totalRatings || 0;
-        const currentRatingSum = (userData.rating || 0) * currentTotalRatings;
         
         let newRatingSum = 0;
         let newTotalRatings = 0;

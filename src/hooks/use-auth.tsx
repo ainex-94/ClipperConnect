@@ -123,6 +123,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             coins: 0,
             rating: 0,
             totalRatings: 0,
+            address: '',
+            latitude: null,
+            longitude: null,
         };
         await setDoc(userRef, newUserProfile);
         toast({

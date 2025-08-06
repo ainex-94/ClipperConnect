@@ -1,3 +1,4 @@
+
 // src/app/customers/page.tsx
 'use client';
 
@@ -6,13 +7,15 @@ import { useAuth } from "@/hooks/use-auth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getCustomers, UserProfile } from "@/lib/firebase/firestore";
-import { Search, MoreHorizontal, Loader2 } from "lucide-react";
+import { MoreHorizontal, Loader2 } from "lucide-react";
 import { format } from 'date-fns';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { StartChatButton } from "@/components/start-chat-button";
+import { DataTable } from "@/components/ui/data-table";
+import { type ColumnDef } from "@tanstack/react-table";
+
 
 interface Customer extends UserProfile {
     totalAppointments?: number;
@@ -50,22 +53,72 @@ export default function CustomersPage() {
     );
   }
     
+  const columns: ColumnDef<Customer>[] = [
+    {
+      accessorKey: 'displayName',
+      header: 'Name',
+      cell: ({ row }) => (
+        <div className="flex items-center gap-3">
+          <Avatar>
+            <AvatarImage data-ai-hint="person portrait" src={row.original.photoURL} />
+            <AvatarFallback>{row.original.displayName?.split(' ').map(n => n[0]).join('')}</AvatarFallback>
+          </Avatar>
+          <span className="font-medium">{row.original.displayName}</span>
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'email',
+      header: 'Contact',
+      cell: ({ row }) => (
+        <div>
+          <div>{row.original.email}</div>
+          <div className="text-muted-foreground text-xs">{row.original.phone || 'N/A'}</div>
+        </div>
+      )
+    },
+    {
+      accessorKey: 'totalAppointments',
+      header: 'Total Appointments',
+      cell: ({ row }) => <div className="text-center">{row.original.totalAppointments || 0}</div>
+    },
+    {
+      accessorKey: 'createdAt',
+      header: 'Member Since',
+      cell: ({ row }) => <div className="text-center">{format(new Date(row.original.createdAt), 'PPP')}</div>
+    },
+    {
+      id: "actions",
+      cell: ({ row }) => {
+        const customer = row.original;
+        return (
+          <div className="text-right">
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon">
+                        <MoreHorizontal className="h-4 w-4" />
+                        <span className="sr-only">Actions</span>
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                   <DropdownMenuItem asChild>
+                      <StartChatButton otherUserId={customer.id} variant="ghost" className="w-full justify-start gap-2" />
+                   </DropdownMenuItem>
+                   <DropdownMenuItem>View Profile</DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        );
+      }
+    }
+  ];
 
   return (
     <Card>
       <CardHeader>
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div>
-              <CardTitle>Customers</CardTitle>
-              <CardDescription>A list of all your clients.</CardDescription>
-            </div>
-            <div className="flex gap-2 w-full sm:w-auto">
-                <div className="relative flex-1 sm:flex-initial">
-                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input placeholder="Search customers..." className="pl-8 w-full" />
-                </div>
-                {user.role === 'admin' && <Button>Add Customer</Button>}
-            </div>
+        <div>
+          <CardTitle>Customers</CardTitle>
+          <CardDescription>A list of all your clients.</CardDescription>
         </div>
       </CardHeader>
       <CardContent>
@@ -74,61 +127,15 @@ export default function CustomersPage() {
               <Loader2 className="h-8 w-8 animate-spin" />
             </div>
         ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead className="hidden md:table-cell">Contact</TableHead>
-              <TableHead className="hidden sm:table-cell">Total Appointments</TableHead>
-              <TableHead className="hidden sm:table-cell text-center">Member Since</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {customers.map((customer) => (
-              <TableRow key={customer.id}>
-                <TableCell>
-                  <div className="flex items-center gap-3">
-                    <Avatar>
-                      <AvatarImage data-ai-hint="person portrait" src={customer.photoURL} />
-                      <AvatarFallback>{customer.displayName?.split(' ').map(n => n[0]).join('')}</AvatarFallback>
-                    </Avatar>
-                    <span className="font-medium">{customer.displayName}</span>
-                  </div>
-                </TableCell>
-                <TableCell className="hidden md:table-cell">
-                    <div>{customer.email}</div>
-                    <div className="text-muted-foreground text-xs">{customer.phone || 'N/A'}</div>
-                </TableCell>
-                <TableCell className="hidden sm:table-cell text-center">{customer.totalAppointments || 0}</TableCell>
-                <TableCell className="hidden sm:table-cell text-center">{format(new Date(customer.createdAt), 'PPP')}</TableCell>
-                <TableCell className="text-right">
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                                <MoreHorizontal className="h-4 w-4" />
-                                <span className="sr-only">Actions</span>
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                           <DropdownMenuItem asChild>
-                              <StartChatButton otherUserId={customer.id} variant="ghost" className="w-full justify-start gap-2" />
-                           </DropdownMenuItem>
-                           <DropdownMenuItem>View Profile</DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                </TableCell>
-              </TableRow>
-            ))}
-             {customers.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={5} className="text-center h-24">
-                  No customers found.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
+          <DataTable
+            columns={columns}
+            data={customers}
+            filterColumn="displayName"
+            filterPlaceholder="Filter by customer name..."
+            emptyState="No customers found."
+            showAddButton={user.role === 'admin'}
+            addButtonText="Add Customer"
+          />
         )}
       </CardContent>
     </Card>

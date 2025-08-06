@@ -5,21 +5,20 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { DollarSign, MoreHorizontal, TrendingUp, CreditCard, Loader2, CheckCircle } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DollarSign, MoreHorizontal, TrendingUp, CreditCard, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { type Appointment, getAllAppointments, getAppointmentsForUser } from '@/lib/firebase/firestore';
-import { useToast } from '@/hooks/use-toast';
 import { InvoiceDialog } from '@/components/invoice-dialog';
+import { DataTable } from '@/components/ui/data-table';
+import { type ColumnDef } from "@tanstack/react-table";
 
 export default function BillingPage() {
   const { user, loading: authLoading } = useAuth();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
-  const { toast } = useToast();
 
   const fetchAppointments = async () => {
     if (user) {
@@ -86,6 +85,52 @@ export default function BillingPage() {
 
   const isBusinessView = user.role === 'admin' || user.role === 'barber';
 
+  const columns: ColumnDef<Appointment>[] = [
+    {
+      accessorKey: isBusinessView ? 'customerName' : 'barberName',
+      header: isBusinessView ? 'Customer' : 'Barber',
+    },
+    { accessorKey: "service", header: "Service" },
+    {
+      accessorKey: "dateTime",
+      header: "Date",
+      cell: ({ row }) => format(new Date(row.original.dateTime), 'PPP'),
+    },
+    {
+      accessorKey: "amountPaid",
+      header: "Amount Paid",
+      cell: ({ row }) => `PKR ${row.original.amountPaid?.toLocaleString() || 'N/A'}`,
+    },
+    {
+      accessorKey: "paymentStatus",
+      header: "Status",
+      cell: ({ row }) => (
+        <Badge variant={getStatusVariant(row.original.paymentStatus)}>{row.original.paymentStatus || 'N/A'}</Badge>
+      ),
+    },
+    {
+      id: "actions",
+      cell: ({ row }) => {
+        const appointment = row.original;
+        return (
+          <div className="text-right">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <MoreHorizontal className="h-4 w-4" />
+                  <span className="sr-only">Actions</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                 <InvoiceDialog appointment={appointment} />
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        );
+      },
+    },
+  ];
+
   return (
     <div className="space-y-6">
        {isBusinessView && (
@@ -135,53 +180,13 @@ export default function BillingPage() {
               <Loader2 className="h-8 w-8 animate-spin" />
             </div>
           ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{isBusinessView ? 'Customer' : 'Barber'}</TableHead>
-                <TableHead>Service</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Amount Paid</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead><span className="sr-only">Actions</span></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {appointments.map((appointment) => (
-                <TableRow key={appointment.id}>
-                  <TableCell className="font-medium">
-                    {isBusinessView ? appointment.customerName : appointment.barberName}
-                  </TableCell>
-                  <TableCell>{appointment.service}</TableCell>
-                  <TableCell>{format(new Date(appointment.dateTime), 'PPP')}</TableCell>
-                  <TableCell>PKR {appointment.amountPaid?.toLocaleString() || 'N/A'}</TableCell>
-                  <TableCell>
-                    <Badge variant={getStatusVariant(appointment.paymentStatus)}>{appointment.paymentStatus || 'N/A'}</Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreHorizontal className="h-4 w-4" />
-                          <span className="sr-only">Actions</span>
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                         <InvoiceDialog appointment={appointment} />
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              ))}
-              {appointments.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={6} className="h-24 text-center">
-                    No transactions found.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+            <DataTable
+              columns={columns}
+              data={appointments}
+              filterColumn={isBusinessView ? "customerName" : "barberName"}
+              filterPlaceholder={isBusinessView ? "Filter by customer..." : "Filter by barber..."}
+              emptyState="No transactions found."
+            />
           )}
         </CardContent>
       </Card>
