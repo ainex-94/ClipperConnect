@@ -43,7 +43,7 @@ export function ChatLayout({ chats: initialChats, defaultChatId }: ChatLayoutPro
                     />
                 </SidebarContent>
             </Sidebar>
-            <div className="flex-1">
+            <div className="flex-1 flex flex-col">
                 <ChatWindow chat={selectedChat} />
             </div>
         </div>
