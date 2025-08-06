@@ -2,7 +2,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
 import { getOrCreateChat } from "@/app/actions";
 import { Button } from "@/components/ui/button";
@@ -19,7 +18,6 @@ interface StartChatButtonProps {
 
 export function StartChatButton({ otherUserId, className, variant="outline", size="sm", asIcon = false }: StartChatButtonProps) {
   const { user } = useAuth();
-  const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
 
   const handleStartChat = async (e: React.MouseEvent) => {
@@ -28,7 +26,8 @@ export function StartChatButton({ otherUserId, className, variant="outline", siz
     setIsLoading(true);
     try {
       const chatId = await getOrCreateChat(user.uid, otherUserId);
-      router.push(`/chat?chatId=${chatId}`);
+      const chatUrl = `/chat?chatId=${chatId}`;
+      window.open(chatUrl, 'clipperconnect_chat');
     } catch (error) {
       console.error("Failed to start chat:", error);
       // Optionally show a toast message here

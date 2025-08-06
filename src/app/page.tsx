@@ -10,18 +10,14 @@ import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/hooks/use-auth";
 import { getAppointmentsForUser, Appointment } from "@/lib/firebase/firestore";
 import { format } from 'date-fns';
-import { Loader2, MessageSquare } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import Link from 'next/link';
-import { getOrCreateChat } from './actions';
-import { useRouter } from 'next/navigation';
+import { Loader2 } from 'lucide-react';
+import { StartChatButton } from '@/components/start-chat-button';
 
 export default function DashboardPage() {
   const { user } = useAuth();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [upcomingAppointments, setUpcomingAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
-  const router = useRouter();
 
   useEffect(() => {
     if (user) {
@@ -52,13 +48,6 @@ export default function DashboardPage() {
       fetchAppointments();
     }
   }, [user]);
-
-  const handleStartChat = async (otherUserId: string) => {
-    if (!user) return;
-    const chatId = await getOrCreateChat(user.uid, otherUserId);
-    router.push(`/chat?chatId=${chatId}`);
-  }
-
 
   if (loading) {
     return <div className="flex items-center justify-center h-full"><Loader2 className="h-8 w-8 animate-spin" /></div>;
@@ -117,10 +106,12 @@ export default function DashboardPage() {
                                 <p className="font-semibold">{format(new Date(appointment.dateTime), "p")}</p>
                             </div>
                         </div>
-                        <Button variant="outline" size="sm" className="mt-2 w-full sm:w-auto" onClick={() => handleStartChat(otherPersonId)}>
-                            <MessageSquare className="mr-2 h-4 w-4" />
-                            Chat
-                        </Button>
+                        <StartChatButton 
+                          otherUserId={otherPersonId}
+                          variant="outline"
+                          size="sm"
+                          className="mt-2 w-full sm:w-auto"
+                        />
                       </div>
                     </div>
                     {index < upcomingAppointments.length - 1 && <Separator className="mt-4" />}
