@@ -20,11 +20,9 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
     const chats = await getChats(currentUser.uid);
 
     return (
-        <main className="flex h-[calc(100dvh_-_4rem)] flex-col">
-            <ChatLayout 
-              chats={chats} 
-              defaultChatId={searchParams?.chatId} 
-            />
-        </main>
+        <ChatLayout 
+            chats={chats} 
+            defaultChatId={searchParams?.chatId} 
+        />
     )
 }

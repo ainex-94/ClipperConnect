@@ -30,7 +30,7 @@ export function ChatLayout({ chats: initialChats, defaultChatId }: ChatLayoutPro
 
 
     return (
-        <div className="flex h-full w-full">
+        <div className="flex h-[calc(100vh-10rem)] w-full -m-4 sm:-m-6 lg:-m-8">
             <Sidebar className="w-full max-w-xs border-r">
                 <SidebarHeader className="p-4">
                     <h2 className="text-xl font-bold">Conversations</h2>
