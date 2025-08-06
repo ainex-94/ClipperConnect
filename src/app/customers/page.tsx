@@ -1,4 +1,3 @@
-
 // src/app/customers/page.tsx
 'use client';
 
@@ -7,7 +6,6 @@ import { useAuth } from "@/hooks/use-auth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getCustomers, UserProfile } from "@/lib/firebase/firestore";
 import { MoreHorizontal, Loader2 } from "lucide-react";
 import { format } from 'date-fns';
@@ -15,6 +13,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { StartChatButton } from "@/components/start-chat-button";
 import { DataTable } from "@/components/ui/data-table";
 import { type ColumnDef } from "@tanstack/react-table";
+import Link from "next/link";
 
 
 interface Customer extends UserProfile {
@@ -58,13 +57,13 @@ export default function CustomersPage() {
       accessorKey: 'displayName',
       header: 'Name',
       cell: ({ row }) => (
-        <div className="flex items-center gap-3">
+        <Link href={`/customers/${row.original.id}`} className="flex items-center gap-3 group">
           <Avatar>
             <AvatarImage data-ai-hint="person portrait" src={row.original.photoURL} />
             <AvatarFallback>{row.original.displayName?.split(' ').map(n => n[0]).join('')}</AvatarFallback>
           </Avatar>
-          <span className="font-medium">{row.original.displayName}</span>
-        </div>
+          <span className="font-medium group-hover:underline">{row.original.displayName}</span>
+        </Link>
       ),
     },
     {
@@ -104,7 +103,9 @@ export default function CustomersPage() {
                    <DropdownMenuItem asChild>
                       <StartChatButton otherUserId={customer.id} variant="ghost" className="w-full justify-start gap-2" />
                    </DropdownMenuItem>
-                   <DropdownMenuItem>View Profile</DropdownMenuItem>
+                   <DropdownMenuItem asChild>
+                     <Link href={`/customers/${customer.id}`} className="w-full">View Profile</Link>
+                   </DropdownMenuItem>
                 </DropdownMenuContent>
             </DropdownMenu>
           </div>

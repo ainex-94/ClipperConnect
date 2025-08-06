@@ -162,6 +162,22 @@ export async function getCompletedAppointmentsForBarber(barberId: string): Promi
     return appointments;
 }
 
+export async function getCompletedAppointmentsForCustomer(customerId: string): Promise<Appointment[]> {
+    const q = query(
+        collection(db, "appointments"),
+        where('customerId', '==', customerId),
+        where('status', '==', 'Completed')
+    );
+    
+    const querySnapshot = await getDocs(q);
+    const appointments = querySnapshot.docs.map(doc => safeJsonParse({ id: doc.id, ...doc.data() })) as Appointment[];
+
+    // Sort by most recent first
+    appointments.sort((a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime());
+    
+    return appointments;
+}
+
 export async function getAllAppointments(barberId?: string): Promise<Appointment[]> {
     let q;
     if (barberId) {
