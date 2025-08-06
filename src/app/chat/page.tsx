@@ -36,7 +36,7 @@ export default function ChatPage() {
     }
 
     return (
-      <main className="flex flex-col h-[calc(100vh-8rem)] sm:h-[calc(100vh-7rem)]">
+      <main className="flex h-full flex-col">
         <ChatLayout 
             chats={chats} 
             defaultChatId={chatId || undefined}
