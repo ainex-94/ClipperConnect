@@ -18,7 +18,7 @@ const rescheduleFormSchema = z.object({
     .max(500),
   barberAvailability: z
     .string()
-min(10, "Please describe barber availability in a bit more detail.")
+    .min(10, "Please describe barber availability in a bit more detail.")
     .max(500),
   currentAppointmentDateTime: z
     .string()
