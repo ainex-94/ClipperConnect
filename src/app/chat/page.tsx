@@ -5,7 +5,7 @@
 import { ChatLayout } from "@/components/chat/chat-layout";
 import { getChats } from "@/lib/firebase/firestore";
 import { useAuth } from "@/hooks/use-auth";
-import { redirect, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { type Chat } from "@/lib/firebase/firestore";
 

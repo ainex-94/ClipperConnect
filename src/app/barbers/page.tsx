@@ -11,7 +11,11 @@ import { StartChatButton } from "@/components/start-chat-button";
 
 export default async function BarbersPage() {
   const user = await getCurrentUser();
-  if (!user || user.role === 'barber') {
+  if (!user) {
+    return null;
+  }
+  
+  if (user.role === 'barber') {
     redirect('/');
   }
 

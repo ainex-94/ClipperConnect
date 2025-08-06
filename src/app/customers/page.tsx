@@ -24,7 +24,11 @@ interface Customer {
 
 export default async function CustomersPage() {
     const user = await getCurrentUser();
-    if (!user || user.role === 'customer') {
+    if (!user) {
+      return null;
+    }
+
+    if (user.role === 'customer') {
       redirect('/');
     }
     const customers: Customer[] = await getCustomers();

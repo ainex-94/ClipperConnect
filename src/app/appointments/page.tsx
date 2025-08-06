@@ -25,8 +25,11 @@ interface Appointment {
 
 export default async function AppointmentsPage() {
   const user = await getCurrentUser();
+  
+  // This check is necessary to satisfy TypeScript, as getCurrentUser can return null.
+  // The main layout already handles the redirect for unauthenticated users.
   if (!user) {
-    redirect('/login');
+    return null;
   }
 
   const appointments: Appointment[] = await getAppointmentsForUser(user.uid, user.role);

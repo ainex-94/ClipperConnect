@@ -10,7 +10,11 @@ import { RoleSwitcher } from "./_components/role-switcher";
 
 export default async function UserManagementPage() {
     const user = await getCurrentUser();
-    if (!user || user.role !== 'admin') {
+    if (!user) {
+      return null;
+    }
+    
+    if (user.role !== 'admin') {
       redirect('/');
     }
     const users: UserProfile[] = await getAllUsers();
