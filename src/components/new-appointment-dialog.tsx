@@ -34,7 +34,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PlusCircle, Loader2 } from "lucide-react";
-import { getCustomers, getBarbers } from "@/lib/firebase/firestore";
+import { getCustomers, getBarbers, UserProfile } from "@/lib/firebase/firestore";
 import { useAuth } from "@/hooks/use-auth";
 
 const formSchema = z.object({
@@ -60,15 +60,27 @@ export function NewAppointmentDialog() {
   useEffect(() => {
     if (open) {
       const fetchUsers = async () => {
-        // Admins can book for any customer, customers book for themselves
-        const customerData = currentUser?.role === 'admin' ? await getCustomers() : (currentUser ? [currentUser] : []);
-        const barberData = await getBarbers();
-        setCustomers(customerData as User[]);
-        setBarbers(barberData);
+        setIsLoading(true);
+        try {
+            // Admins can book for any customer, customers book for themselves
+            const customerData = currentUser?.role === 'admin' ? await getCustomers() : (currentUser ? [currentUser] : []);
+            const barberData = await getBarbers();
+            setCustomers(customerData as User[]);
+            setBarbers(barberData as User[]);
+        } catch (error) {
+            console.error("Failed to fetch users:", error);
+            toast({
+                variant: "destructive",
+                title: "Error",
+                description: "Could not load user data. Please try again later."
+            });
+        } finally {
+            setIsLoading(false);
+        }
       };
       fetchUsers();
     }
-  }, [open, currentUser]);
+  }, [open, currentUser, toast]);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -109,6 +121,7 @@ export function NewAppointmentDialog() {
         description: "New appointment has been created.",
       });
       setOpen(false);
+      form.reset();
     }
   }
 
@@ -135,7 +148,7 @@ export function NewAppointmentDialog() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Customer</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value} disabled={currentUser?.role === 'customer'}>
+                  <Select onValueChange={field.onChange} value={field.value} disabled={currentUser?.role === 'customer' || isLoading}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select a customer" />
@@ -159,18 +172,18 @@ export function NewAppointmentDialog() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Barber</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value} disabled={isLoading}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select a barber" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {barbers.map((barber) => (
+                      {barbers.length > 0 ? barbers.map((barber) => (
                         <SelectItem key={barber.id} value={barber.id}>
                           {barber.displayName}
                         </SelectItem>
-                      ))}
+                      )) : <SelectItem value="loading" disabled>Loading barbers...</SelectItem>}
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -184,7 +197,7 @@ export function NewAppointmentDialog() {
                 <FormItem>
                   <FormLabel>Service</FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g., Haircut" {...field} />
+                    <Input placeholder="e.g., Haircut" {...field} disabled={isLoading}/>
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -197,7 +210,7 @@ export function NewAppointmentDialog() {
                 <FormItem>
                   <FormLabel>Date & Time</FormLabel>
                   <FormControl>
-                    <Input type="datetime-local" {...field} />
+                    <Input type="datetime-local" {...field} disabled={isLoading}/>
                   </FormControl>
                   <FormMessage />
                 </FormItem>

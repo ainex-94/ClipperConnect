@@ -49,7 +49,7 @@ export default async function AppointmentsPage() {
             Manage all your upcoming and past appointments.
           </CardDescription>
         </div>
-        {user.role !== 'barber' && <NewAppointmentDialog />}
+        {(user.role === 'customer' || user.role === 'admin') && <NewAppointmentDialog />}
       </CardHeader>
       <CardContent>
         <Table>
