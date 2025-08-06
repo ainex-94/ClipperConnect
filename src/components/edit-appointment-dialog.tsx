@@ -38,6 +38,7 @@ import {
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Loader2, Pencil } from "lucide-react";
 import { getCustomers, getBarbers, UserProfile, Appointment } from "@/lib/firebase/firestore";
+import { useNotification } from "@/hooks/use-notification";
 
 const formSchema = z.object({
   appointmentId: z.string(),
@@ -71,6 +72,7 @@ interface EditAppointmentDialogProps {
 export function EditAppointmentDialog({ appointment, onSuccess }: EditAppointmentDialogProps) {
   const { toast } = useToast();
   const { user } = useAuth();
+  const { triggerNotification } = useNotification();
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [customers, setCustomers] = useState<User[]>([]);
@@ -122,6 +124,7 @@ export function EditAppointmentDialog({ appointment, onSuccess }: EditAppointmen
         description: "Appointment has been updated.",
       });
       onSuccess();
+      triggerNotification();
       setOpen(false);
     }
   }

@@ -4,6 +4,7 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster"
 import MainLayout from '@/components/layout/main-layout';
 import { AuthProvider } from '@/hooks/use-auth';
+import { NotificationProvider } from '@/hooks/use-notification';
 
 export const metadata: Metadata = {
   title: 'ClipperConnect',
@@ -25,9 +26,11 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased">
         <AuthProvider>
-          <MainLayout>
-            {children}
-          </MainLayout>
+          <NotificationProvider>
+            <MainLayout>
+              {children}
+            </MainLayout>
+          </NotificationProvider>
         </AuthProvider>
         <Toaster />
       </body>

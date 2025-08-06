@@ -18,6 +18,7 @@ import { Star, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { rateAppointment } from "@/app/actions";
 import { cn } from "@/lib/utils";
+import { useNotification } from "@/hooks/use-notification";
 
 interface RateAppointmentDialogProps {
   appointmentId: string;
@@ -33,6 +34,7 @@ export function RateAppointmentDialog({ appointmentId, ratedUserId, ratingField,
   const [rating, setRating] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
   const { toast } = useToast();
+  const { triggerNotification } = useNotification();
 
   const handleRate = async () => {
     if (rating === 0) {
@@ -48,6 +50,7 @@ export function RateAppointmentDialog({ appointmentId, ratedUserId, ratingField,
     } else {
       toast({ title: "Success", description: "Your rating has been submitted. Thank you!" });
       onSuccess();
+      triggerNotification();
       setOpen(false);
     }
     setIsLoading(false);

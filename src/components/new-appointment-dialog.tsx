@@ -37,6 +37,7 @@ import {
 } from "@/components/ui/select";
 import { PlusCircle, Loader2 } from "lucide-react";
 import { getCustomers, getBarbers, UserProfile } from "@/lib/firebase/firestore";
+import { useNotification } from "@/hooks/use-notification";
 
 const formSchema = z.object({
   customerId: z.string().min(1, "Please select a customer."),
@@ -62,12 +63,13 @@ const services = [
 ];
 
 interface NewAppointmentDialogProps {
-  onSuccess: () => void;
+  onSuccess?: () => void;
 }
 
 export function NewAppointmentDialog({ onSuccess }: NewAppointmentDialogProps) {
   const { toast } = useToast();
   const { user } = useAuth();
+  const { triggerNotification } = useNotification();
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [customers, setCustomers] = useState<User[]>([]);
@@ -129,7 +131,8 @@ export function NewAppointmentDialog({ onSuccess }: NewAppointmentDialogProps) {
         description: "New appointment has been created.",
       });
       setOpen(false);
-      onSuccess();
+      onSuccess?.();
+      triggerNotification();
       form.reset();
     }
   }

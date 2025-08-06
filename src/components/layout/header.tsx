@@ -12,14 +12,22 @@ import {
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Search, LogIn, LogOut, Coins } from "lucide-react";
+import { Search, LogIn, LogOut, Coins, Bell } from "lucide-react";
 import { Input } from "../ui/input";
 import { useAuth } from "@/hooks/use-auth";
 import Link from "next/link";
 import { NewAppointmentDialog } from "../new-appointment-dialog";
+import { useNotification } from "@/hooks/use-notification";
 
 export default function AppHeader() {
   const { user, logout } = useAuth();
+  const { hasNotification, clearNotification } = useNotification();
+
+  const handleNotificationClick = () => {
+    // In a real app, this would open a notification panel.
+    // For now, it just clears the indicator.
+    clearNotification();
+  };
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background/95 px-4 backdrop-blur sm:px-6 lg:px-8">
@@ -41,6 +49,18 @@ export default function AppHeader() {
               <Coins className="h-5 w-5" />
               <span>{(user.coins || 0).toLocaleString()}</span>
             </div>
+            
+            <Button variant="ghost" size="icon" className="relative" onClick={handleNotificationClick}>
+              <Bell className="h-5 w-5" />
+              {hasNotification && (
+                <span className="absolute top-1 right-1 flex h-2.5 w-2.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
+                </span>
+              )}
+              <span className="sr-only">Notifications</span>
+            </Button>
+
             <NewAppointmentDialog />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

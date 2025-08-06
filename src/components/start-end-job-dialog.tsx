@@ -19,6 +19,7 @@ import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Play, Square, Loader2 } from "lucide-react";
 import { updateAppointmentStatus } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
+import { useNotification } from "@/hooks/use-notification";
 
 interface StartEndJobDialogProps {
   appointmentId: string;
@@ -30,6 +31,7 @@ export function StartEndJobDialog({ appointmentId, action, onSuccess }: StartEnd
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const { triggerNotification } = useNotification();
 
   const handleAction = async () => {
     setIsLoading(true);
@@ -42,6 +44,7 @@ export function StartEndJobDialog({ appointmentId, action, onSuccess }: StartEnd
     } else {
       toast({ title: "Success", description: `Job successfully ${action === 'start' ? 'started' : 'ended'}.` });
       onSuccess();
+      triggerNotification();
       setOpen(false);
     }
     setIsLoading(false);

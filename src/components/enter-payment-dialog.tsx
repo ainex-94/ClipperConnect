@@ -20,6 +20,7 @@ import { DollarSign, Loader2 } from "lucide-react";
 import { Appointment } from "@/lib/firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { recordPayment } from "@/app/actions";
+import { useNotification } from "@/hooks/use-notification";
 
 interface EnterPaymentDialogProps {
   appointment: Appointment;
@@ -31,6 +32,7 @@ export function EnterPaymentDialog({ appointment, onSuccess }: EnterPaymentDialo
   const [isLoading, setIsLoading] = useState(false);
   const [amount, setAmount] = useState(appointment.price?.toString() || "");
   const { toast } = useToast();
+  const { triggerNotification } = useNotification();
 
   const handleSavePayment = async () => {
     setIsLoading(true);
@@ -49,6 +51,7 @@ export function EnterPaymentDialog({ appointment, onSuccess }: EnterPaymentDialo
     } else {
       toast({ title: "Success", description: "Payment recorded successfully." });
       onSuccess();
+      triggerNotification();
       setOpen(false);
     }
     setIsLoading(false);
