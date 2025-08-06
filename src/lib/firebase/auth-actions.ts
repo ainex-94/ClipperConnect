@@ -3,18 +3,22 @@
 import 'server-only';
 
 import { cookies } from 'next/headers';
-import { initializeApp, getApps, getApp } from 'firebase-admin/app';
+import { initializeApp, getApps, getApp, type App } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
 import { firebaseConfig } from './config';
 import { UserProfile } from './firestore';
 
-const app = !getApps().length
-  ? initializeApp({
-      projectId: firebaseConfig.projectId,
-    })
-  : getApp();
+function getAdminApp(): App {
+    if (getApps().length > 0) {
+        return getApp();
+    }
+    return initializeApp({
+        projectId: firebaseConfig.projectId,
+    });
+}
 
+const app = getAdminApp();
 const auth = getAuth(app);
 const db = getFirestore(app);
 
