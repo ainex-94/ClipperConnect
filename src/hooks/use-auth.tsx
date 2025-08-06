@@ -8,6 +8,7 @@ import {
   useEffect,
   useContext,
   ReactNode,
+  useCallback,
 } from "react";
 import { 
   onAuthStateChanged, 
@@ -32,6 +33,7 @@ interface AuthContextType {
   loginWithEmailAndPassword: (email: string, pass: string) => void;
   registerWithEmailAndPassword: (email: string, pass: string, displayName: string, role: 'customer'|'barber') => void;
   logout: () => void;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -42,23 +44,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const { toast } = useToast();
 
+  const fetchUserProfile = useCallback(async (firebaseUser: FirebaseUser) => {
+    const userRef = doc(db, 'users', firebaseUser.uid);
+    const docSnap = await getDoc(userRef);
+    if (docSnap.exists()) {
+      return { id: docSnap.id, ...docSnap.data() } as UserProfile;
+    }
+    return null;
+  }, []);
+  
+  const refreshUser = useCallback(async () => {
+    const firebaseUser = auth.currentUser;
+    if (firebaseUser) {
+        setLoading(true);
+        const userProfile = await fetchUserProfile(firebaseUser);
+        setUser(userProfile);
+        setLoading(false);
+    }
+  }, [fetchUserProfile]);
+
+
   useEffect(() => {
-    let unsubscribeFirestore: () => void;
+    let unsubscribeFirestore: (() => void) | undefined;
 
     const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
       setLoading(true);
       if (firebaseUser) {
-        // User is signed in, see docs for a list of available properties
-        // https://firebase.google.com/docs/reference/js/firebase.User
         const userRef = doc(db, 'users', firebaseUser.uid);
         
-        // Listen for real-time updates to the user's profile
         unsubscribeFirestore = onSnapshot(userRef, (docSnap) => {
           if (docSnap.exists()) {
             setUser({ id: docSnap.id, ...docSnap.data() } as UserProfile);
           } else {
-            // This can happen if the user's Firestore document is deleted
-            // but they still have a valid auth session.
             setUser(null);
           }
           setLoading(false);
@@ -69,7 +86,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
 
       } else {
-        // User is signed out
         setUser(null);
         setLoading(false);
         if (unsubscribeFirestore) {
@@ -105,6 +121,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             createdAt: new Date().toISOString(),
             role: role,
             coins: 0,
+            rating: 0,
+            totalRatings: 0,
         };
         await setDoc(userRef, newUserProfile);
         toast({
@@ -112,8 +130,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           description: "Welcome to ClipperConnect!",
         });
       } else {
-         // For existing users, just show a welcome back message.
-         // Do NOT update their role on login.
         toast({
             title: "Login Successful",
             description: "Welcome back!",
@@ -160,8 +176,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     try {
         const result = await signInWithEmailAndPassword(auth, email, pass);
-        // We pass 'customer' as a default, but our updated createFirestoreUser
-        // function will ignore it for existing users.
         await createFirestoreUser(result.user, 'customer');
     } catch (error: any) {
         console.error("Error during Email/Password sign-in:", error);
@@ -177,13 +191,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = async () => {
     setLoading(true);
     await signOut(auth);
-    // onAuthStateChanged will set user to null
     router.push("/login"); 
     toast({
       title: "Logged Out",
       description: "You have been successfully logged out.",
     });
-    // Final loading state is handled by the auth state listener
   };
 
   const value = {
@@ -193,6 +205,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loginWithEmailAndPassword,
     registerWithEmailAndPassword,
     logout,
+    refreshUser
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

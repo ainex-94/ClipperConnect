@@ -6,8 +6,8 @@ import {
   type SuggestRescheduleOptionsInput,
 } from "@/ai/flows/suggest-reschedule-options";
 import { db } from "@/lib/firebase/firebase";
-import { getDocument, getOrCreateChat as getOrCreateChatFirestore, UserProfile, Appointment } from "@/lib/firebase/firestore";
-import { addDoc, collection, serverTimestamp, doc, setDoc, updateDoc, increment } from "firebase/firestore";
+import { getDocument, getOrCreateChat as getOrCreateChatFirestore, UserProfile, Appointment, updateAverageRating } from "@/lib/firebase/firestore";
+import { addDoc, collection, doc, getDoc, increment, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
@@ -18,7 +18,7 @@ const rescheduleFormSchema = z.object({
     .max(500),
   barberAvailability: z
     .string()
-    .min(10, "Please describe barber availability in a bit more detail.")
+min(10, "Please describe barber availability in a bit more detail.")
     .max(500),
   currentAppointmentDateTime: z
     .string()
@@ -216,5 +216,40 @@ export async function recordPayment(values: z.infer<typeof recordPaymentSchema>)
     } catch (error) {
         console.error("Firestore Error:", error);
         return { error: "Failed to record payment." };
+    }
+}
+
+
+const rateAppointmentSchema = z.object({
+  appointmentId: z.string().min(1),
+  ratedUserId: z.string().min(1),
+  rating: z.number().min(1).max(5),
+  ratingField: z.enum(['barberRating', 'customerRating']),
+});
+
+export async function rateAppointment(values: z.infer<typeof rateAppointmentSchema>) {
+    const validatedFields = rateAppointmentSchema.safeParse(values);
+
+    if (!validatedFields.success) {
+        return {
+            error: "Invalid fields: " + validatedFields.error.errors.map(e => e.message).join(', '),
+        };
+    }
+    const { appointmentId, ratedUserId, rating, ratingField } = validatedFields.data;
+
+    try {
+        // Update the rating in the appointment document
+        const appointmentRef = doc(db, "appointments", appointmentId);
+        await updateDoc(appointmentRef, { [ratingField]: rating });
+
+        // Update the average rating for the user
+        await updateAverageRating(ratedUserId);
+
+        revalidatePath('/appointments');
+        return { success: "Rating submitted successfully!" };
+
+    } catch (error) {
+        console.error("Firestore Error:", error);
+        return { error: "Failed to submit rating." };
     }
 }

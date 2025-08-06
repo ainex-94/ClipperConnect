@@ -1,7 +1,7 @@
 
 'use server';
 
-import { collection, getDocs, getDoc, doc, query, where, DocumentData, Timestamp, serverTimestamp, addDoc, setDoc, orderBy, limit, updateDoc, or, increment } from 'firebase/firestore';
+import { collection, getDocs, getDoc, doc, query, where, DocumentData, Timestamp, serverTimestamp, addDoc, setDoc, orderBy, limit, updateDoc, or, increment, runTransaction } from 'firebase/firestore';
 import { db } from '@/lib/firebase/firebase';
 
 // Type Definitions
@@ -15,6 +15,7 @@ export interface UserProfile {
     createdAt: string;
     specialty?: string;
     rating?: number;
+    totalRatings?: number; // Keep track of how many ratings have been submitted
     phone?: string;
     bio?: string;
     availability?: {
@@ -24,6 +25,7 @@ export interface UserProfile {
         } | null
     },
     coins?: number;
+    shopImageUrls?: string[];
 }
 
 export interface Message {
@@ -62,6 +64,8 @@ export interface Appointment {
   price?: number;
   paymentStatus?: 'Paid' | 'Unpaid';
   amountPaid?: number;
+  barberRating?: number;
+  customerRating?: number;
 }
 
 
@@ -214,5 +218,49 @@ export async function sendMessage(chatId: string, senderId: string, receiverId: 
             text,
             timestamp: serverTimestamp(),
         }
+    });
+}
+
+export async function updateAverageRating(userId: string) {
+    const userRef = doc(db, "users", userId);
+    
+    await runTransaction(db, async (transaction) => {
+        const userDoc = await transaction.get(userRef);
+        if (!userDoc.exists()) {
+            throw new Error("User document does not exist!");
+        }
+
+        const userData = userDoc.data() as UserProfile;
+        const currentTotalRatings = userData.totalRatings || 0;
+        const currentRatingSum = (userData.rating || 0) * currentTotalRatings;
+        
+        let newRatingSum = 0;
+        let newTotalRatings = 0;
+
+        // Query appointments where this user was rated
+        const appointmentQuery = query(
+            collection(db, "appointments"),
+            userData.role === 'barber'
+                ? where('barberId', '==', userId)
+                : where('customerId', '==', userId)
+        );
+
+        const appointmentSnapshot = await getDocs(appointmentQuery);
+
+        appointmentSnapshot.forEach(appointmentDoc => {
+            const appointmentData = appointmentDoc.data();
+            const ratingField = userData.role === 'barber' ? 'barberRating' : 'customerRating';
+            if (appointmentData[ratingField]) {
+                newRatingSum += appointmentData[ratingField];
+                newTotalRatings++;
+            }
+        });
+        
+        const newAverageRating = newTotalRatings > 0 ? newRatingSum / newTotalRatings : 0;
+
+        transaction.update(userRef, {
+            rating: newAverageRating,
+            totalRatings: newTotalRatings,
+        });
     });
 }

@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getAppointmentsForUser, Appointment } from "@/lib/firebase/firestore";
-import { MoreHorizontal, Loader2 } from "lucide-react";
+import { MoreHorizontal, Loader2, Star } from "lucide-react";
 import { format } from 'date-fns';
 import { NewAppointmentDialog } from "@/components/new-appointment-dialog";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { StartChatButton } from "@/components/start-chat-button";
 import { StartEndJobDialog } from "@/components/start-end-job-dialog";
 import { EnterPaymentDialog } from "@/components/enter-payment-dialog";
+import { RateAppointmentDialog } from "@/components/rate-appointment-dialog";
 
 export default function AppointmentsPage() {
   const { user, loading: authLoading } = useAuth();
@@ -87,6 +88,9 @@ export default function AppointmentsPage() {
           <TableBody>
             {user && appointments.map((appointment) => {
                const otherUserId = user.uid === appointment.barberId ? appointment.customerId : appointment.barberId;
+               const isBarber = user.role === 'barber';
+               const isCustomer = user.role === 'customer';
+               
                return (
                 <TableRow key={appointment.id}>
                     <TableCell className="font-medium">{appointment.customerName}</TableCell>
@@ -95,7 +99,7 @@ export default function AppointmentsPage() {
                     <TableCell>{format(new Date(appointment.dateTime), "PPP p")}</TableCell>
                     <TableCell>PKR {appointment.price?.toLocaleString() || 'N/A'}</TableCell>
                     <TableCell>
-                    <Badge variant={getStatusVariant(appointment.status) as any}>{appointment.status}</Badge>
+                    <Badge variant={getStatusVariant(appointment.status)}>{appointment.status}</Badge>
                     </TableCell>
                     <TableCell className="text-right">
                        <DropdownMenu>
@@ -111,7 +115,7 @@ export default function AppointmentsPage() {
                                 </DropdownMenuItem>
                                 <DropdownMenuItem>Edit</DropdownMenuItem>
                                 
-                                {user.role === 'barber' && (
+                                {isBarber && (
                                   <>
                                     <DropdownMenuSeparator />
                                     {appointment.status === 'Confirmed' && (
@@ -135,6 +139,29 @@ export default function AppointmentsPage() {
                                       />
                                     )}
                                     <DropdownMenuItem className="text-destructive">Cancel</DropdownMenuItem>
+                                  </>
+                                )}
+                                
+                                {appointment.status === 'Completed' && (
+                                  <>
+                                    {isCustomer && !appointment.barberRating && (
+                                      <RateAppointmentDialog
+                                        appointmentId={appointment.id}
+                                        ratedUserId={appointment.barberId}
+                                        ratingField="barberRating"
+                                        onSuccess={fetchAppointments}
+                                        userNameToRate={appointment.barberName}
+                                      />
+                                    )}
+                                     {isBarber && !appointment.customerRating && (
+                                      <RateAppointmentDialog
+                                        appointmentId={appointment.id}
+                                        ratedUserId={appointment.customerId}
+                                        ratingField="customerRating"
+                                        onSuccess={fetchAppointments}
+                                        userNameToRate={appointment.customerName}
+                                      />
+                                    )}
                                   </>
                                 )}
 

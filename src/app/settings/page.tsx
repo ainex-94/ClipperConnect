@@ -1,3 +1,4 @@
+
 // src/app/settings/page.tsx
 "use client"
 
@@ -11,32 +12,37 @@ import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/use-auth";
-import { doc, updateDoc, getDoc } from "firebase/firestore";
+import { doc, updateDoc, getDoc, arrayUnion, arrayRemove } from "firebase/firestore";
 import { db } from "@/lib/firebase/firebase";
 import { useToast } from "@/hooks/use-toast";
-import { useState, useEffect } from "react";
-import { Loader2 } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Loader2, Camera, Upload, Trash2, X } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { uploadImage } from "@/lib/firebase/storage";
+import Image from "next/image";
 
 const daysOfWeek = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
 
 export default function SettingsPage() {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const { toast } = useToast();
   const [formData, setFormData] = useState({
-    firstName: "",
-    lastName: "",
+    displayName: "",
     email: "",
     bio: ""
   });
   const [availability, setAvailability] = useState<Record<string, { start: string; end: string; enabled: boolean }>>({});
+  const [shopImageUrls, setShopImageUrls] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isUploading, setIsUploading] = useState(false);
+  
+  const profilePicInputRef = useRef<HTMLInputElement>(null);
+  const shopPhotoInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (user) {
-      const nameParts = user.displayName?.split(" ") || ["", ""];
       setFormData({
-        firstName: nameParts[0],
-        lastName: nameParts.slice(1).join(" "),
+        displayName: user.displayName || "",
         email: user.email || "",
         bio: user.bio || "" 
       });
@@ -48,6 +54,7 @@ export default function SettingsPage() {
            if (docSnap.exists()) {
              const userData = docSnap.data();
              setFormData(prev => ({...prev, bio: userData.bio || ""}));
+             setShopImageUrls(userData.shopImageUrls || []);
              
              const initialAvailability: any = {};
              daysOfWeek.forEach(day => {
@@ -68,6 +75,67 @@ export default function SettingsPage() {
       }
     }
   }, [user]);
+  
+  const handleProfilePictureUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!user || !event.target.files || event.target.files.length === 0) return;
+    
+    setIsUploading(true);
+    const file = event.target.files[0];
+    const path = `profile_pictures/${user.uid}`;
+
+    try {
+      const photoURL = await uploadImage(file, path);
+      const userRef = doc(db, "users", user.uid);
+      await updateDoc(userRef, { photoURL });
+      await refreshUser(); // Refresh user data from auth context
+      toast({ title: "Success", description: "Profile picture updated." });
+    } catch (error) {
+      console.error("Error uploading profile picture: ", error);
+      toast({ variant: "destructive", title: "Error", description: "Failed to upload image." });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleShopPhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!user || !event.target.files || event.target.files.length === 0) return;
+
+    setIsUploading(true);
+    const file = event.target.files[0];
+    const path = `shop_photos/${user.uid}/${Date.now()}_${file.name}`;
+
+    try {
+      const imageUrl = await uploadImage(file, path);
+      const userRef = doc(db, "users", user.uid);
+      await updateDoc(userRef, {
+        shopImageUrls: arrayUnion(imageUrl)
+      });
+      setShopImageUrls(prev => [...prev, imageUrl]);
+      toast({ title: "Success", description: "Shop photo added." });
+    } catch (error)
+ {
+      console.error("Error uploading shop photo: ", error);
+      toast({ variant: "destructive", title: "Error", description: "Failed to upload shop photo." });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleDeleteShopPhoto = async (imageUrl: string) => {
+    if (!user) return;
+    try {
+      const userRef = doc(db, "users", user.uid);
+      await updateDoc(userRef, {
+        shopImageUrls: arrayRemove(imageUrl)
+      });
+      setShopImageUrls(prev => prev.filter(url => url !== imageUrl));
+      // Note: This does not delete the file from Firebase Storage to keep it simple.
+      toast({ title: "Success", description: "Shop photo removed." });
+    } catch (error) {
+       console.error("Error deleting shop photo: ", error);
+      toast({ variant: "destructive", title: "Error", description: "Failed to remove shop photo." });
+    }
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { id, value } = e.target;
@@ -93,7 +161,7 @@ export default function SettingsPage() {
     try {
       const userRef = doc(db, "users", user.uid);
       const updateData: any = {
-        displayName: `${formData.firstName} ${formData.lastName}`.trim(),
+        displayName: formData.displayName.trim(),
         email: formData.email,
         bio: formData.bio,
       };
@@ -101,7 +169,7 @@ export default function SettingsPage() {
       if (user.role === 'barber') {
         updateData.availability = {};
         daysOfWeek.forEach(day => {
-          if (availability[day].enabled) {
+          if (availability[day]?.enabled) {
             updateData.availability[day] = {
               start: availability[day].start,
               end: availability[day].end,
@@ -111,8 +179,9 @@ export default function SettingsPage() {
           }
         });
       }
-
+      
       await updateDoc(userRef, updateData);
+      await refreshUser(); // Refresh user data to update display name everywhere
       toast({ title: "Success", description: "Profile updated successfully." });
     } catch (error) {
       console.error("Error updating profile: ", error);
@@ -138,20 +207,38 @@ export default function SettingsPage() {
       <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
         <div className="md:col-span-1">
           <h2 className="text-xl font-semibold">Profile</h2>
-          <p className="text-sm text-muted-foreground">Update your personal information.</p>
+          <p className="text-sm text-muted-foreground">Update your personal information and profile picture.</p>
         </div>
         <div className="md:col-span-2">
           <Card>
             <CardContent className="pt-6">
               <div className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="firstName">First Name</Label>
-                    <Input id="firstName" value={formData.firstName} onChange={handleInputChange} />
+                 <div className="flex items-center space-x-4">
+                  <div className="relative">
+                    <Avatar className="h-20 w-20">
+                        <AvatarImage data-ai-hint="person" src={user?.photoURL || ''} />
+                        <AvatarFallback>{user?.displayName?.[0]}</AvatarFallback>
+                    </Avatar>
+                    <input
+                      type="file"
+                      ref={profilePicInputRef}
+                      onChange={handleProfilePictureUpload}
+                      className="hidden"
+                      accept="image/*"
+                    />
+                    <Button
+                      size="icon"
+                      variant="outline"
+                      className="absolute bottom-0 right-0 rounded-full h-8 w-8 bg-background"
+                      onClick={() => profilePicInputRef.current?.click()}
+                      disabled={isUploading}
+                    >
+                      {isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
+                    </Button>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="lastName">Last Name</Label>
-                    <Input id="lastName" value={formData.lastName} onChange={handleInputChange} />
+                  <div className="space-y-2 flex-1">
+                    <Label htmlFor="displayName">Display Name</Label>
+                    <Input id="displayName" value={formData.displayName} onChange={handleInputChange} />
                   </div>
                 </div>
                 <div className="space-y-2">
@@ -165,8 +252,8 @@ export default function SettingsPage() {
               </div>
             </CardContent>
             <CardFooter className="border-t px-6 py-4">
-              <Button onClick={handleSaveChanges} disabled={loading}>
-                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <Button onClick={handleSaveChanges} disabled={loading || isUploading}>
+                {(loading || isUploading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Save Changes
               </Button>
             </CardFooter>
@@ -176,6 +263,47 @@ export default function SettingsPage() {
       
       {user.role === 'barber' && (
         <>
+        <Separator />
+          <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
+            <div className="md:col-span-1">
+              <h2 className="text-xl font-semibold">Shop Photos</h2>
+              <p className="text-sm text-muted-foreground">Showcase your barbershop to potential customers.</p>
+            </div>
+            <div className="md:col-span-2">
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                    {shopImageUrls.map((url) => (
+                      <div key={url} className="relative group aspect-square">
+                        <Image src={url} alt="Shop photo" layout="fill" className="rounded-md object-cover" />
+                        <Button
+                          variant="destructive"
+                          size="icon"
+                          className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() => handleDeleteShopPhoto(url)}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                     <div className="aspect-square flex items-center justify-center border-2 border-dashed rounded-md">
+                        <input
+                          type="file"
+                          ref={shopPhotoInputRef}
+                          onChange={handleShopPhotoUpload}
+                          className="hidden"
+                          accept="image/*"
+                          disabled={isUploading}
+                        />
+                        <Button variant="outline" size="icon" onClick={() => shopPhotoInputRef.current?.click()} disabled={isUploading}>
+                           {isUploading ? <Loader2 className="h-6 w-6 animate-spin" /> : <Upload className="h-6 w-6" />}
+                        </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
         <Separator />
          <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
             <div className="md:col-span-1">
@@ -218,8 +346,8 @@ export default function SettingsPage() {
                   ))}
                 </CardContent>
                 <CardFooter className="border-t px-6 py-4">
-                  <Button onClick={handleSaveChanges} disabled={loading}>
-                    {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  <Button onClick={handleSaveChanges} disabled={loading || isUploading}>
+                    {(loading || isUploading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Save Availability
                   </Button>
                 </CardFooter>

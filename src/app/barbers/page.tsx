@@ -1,3 +1,4 @@
+
 // src/app/barbers/page.tsx
 'use client';
 
@@ -10,6 +11,8 @@ import { getBarbers, UserProfile } from "@/lib/firebase/firestore";
 import { Phone, Mail, Star, MessageSquare, Loader2 } from "lucide-react";
 import { ViewScheduleDialog } from "@/components/view-schedule-dialog";
 import { StartChatButton } from "@/components/start-chat-button";
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
+import Image from 'next/image';
 
 export default function BarbersPage() {
   const { user } = useAuth();
@@ -42,38 +45,64 @@ export default function BarbersPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {barbers.map((barber) => (
-            <Card key={barber.id} className="flex flex-col">
-              <CardHeader className="items-center">
-                <Avatar className="w-24 h-24 mb-2">
-                  <AvatarImage data-ai-hint="person portrait" src={barber.photoURL} />
-                  <AvatarFallback>{barber.displayName?.split(' ').map(n => n[0]).join('')}</AvatarFallback>
-                </Avatar>
-                <CardTitle>{barber.displayName}</CardTitle>
-                <CardDescription>{barber.specialty || 'All-rounder'}</CardDescription>
-                <div className="flex items-center gap-1 text-yellow-500 mt-1">
-                  <Star className="w-4 h-4 fill-current" />
-                  <span>{barber.rating || 4.8}</span>
-                </div>
-              </CardHeader>
-              <CardContent className="flex-grow">
-                <div className="flex flex-col gap-2 text-sm text-muted-foreground">
-                  <div className="flex items-center gap-2">
-                    <Mail className="w-4 h-4" />
-                    <span>{barber.email}</span>
+          {barbers.map((barber) => {
+            const images = [barber.photoURL, ...(barber.shopImageUrls || [])];
+            return (
+              <Card key={barber.id} className="flex flex-col">
+                 <CardHeader className="p-0">
+                  <Carousel className="w-full">
+                    <CarouselContent>
+                      {images.map((img, index) => (
+                        <CarouselItem key={index}>
+                          <div className="relative aspect-video">
+                             <Image
+                              src={img}
+                              alt={`Photo ${index + 1} for ${barber.displayName}`}
+                              fill
+                              className="object-cover rounded-t-lg"
+                              data-ai-hint={index === 0 ? "person portrait" : "barbershop interior"}
+                            />
+                          </div>
+                        </CarouselItem>
+                      ))}
+                    </CarouselContent>
+                    {images.length > 1 && (
+                      <>
+                        <CarouselPrevious className="absolute left-2" />
+                        <CarouselNext className="absolute right-2" />
+                      </>
+                    )}
+                  </Carousel>
+                </CardHeader>
+                <div className="p-4 flex flex-col flex-grow">
+                  <div className="text-center mb-4">
+                    <CardTitle>{barber.displayName}</CardTitle>
+                    <CardDescription>{barber.specialty || 'All-rounder'}</CardDescription>
+                    <div className="flex items-center justify-center gap-1 text-yellow-500 mt-1">
+                      <Star className="w-4 h-4 fill-current" />
+                      <span>{barber.rating?.toFixed(1) || 'New'}</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Phone className="w-4 h-4" />
-                    <span>{barber.phone || '+1 234 567 890'}</span>
-                  </div>
+                  <CardContent className="flex-grow p-0">
+                    <div className="flex flex-col gap-2 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-2">
+                        <Mail className="w-4 h-4" />
+                        <span>{barber.email}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Phone className="w-4 h-4" />
+                        <span>{barber.phone || '+1 234 567 890'}</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                  <CardFooter className="flex flex-col sm:flex-row gap-2 pt-4 p-0">
+                      <ViewScheduleDialog barber={barber} />
+                      {user && <StartChatButton otherUserId={barber.id} />}
+                  </CardFooter>
                 </div>
-              </CardContent>
-              <CardFooter className="flex flex-col sm:flex-row gap-2">
-                  <ViewScheduleDialog barber={barber} />
-                  {user && <StartChatButton otherUserId={barber.id} />}
-              </CardFooter>
-            </Card>
-          ))}
+              </Card>
+            )
+          })}
           {barbers.length === 0 && (
             <p className="text-muted-foreground col-span-full text-center">No barbers have registered yet.</p>
           )}
