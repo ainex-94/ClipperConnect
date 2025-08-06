@@ -79,6 +79,7 @@ export default function AppointmentsPage() {
               <TableHead>Barber</TableHead>
               <TableHead>Service</TableHead>
               <TableHead>Date & Time</TableHead>
+              <TableHead>Price</TableHead>
               <TableHead>Status</TableHead>
               <TableHead><span className="sr-only">Actions</span></TableHead>
             </TableRow>
@@ -92,6 +93,7 @@ export default function AppointmentsPage() {
                     <TableCell>{appointment.barberName}</TableCell>
                     <TableCell>{appointment.service}</TableCell>
                     <TableCell>{format(new Date(appointment.dateTime), "PPP p")}</TableCell>
+                    <TableCell>PKR {appointment.price?.toLocaleString() || 'N/A'}</TableCell>
                     <TableCell>
                     <Badge variant={getStatusVariant(appointment.status) as any}>{appointment.status}</Badge>
                     </TableCell>
@@ -143,7 +145,7 @@ export default function AppointmentsPage() {
             )})}
              {(!user || appointments.length === 0) && (
               <TableRow>
-                <TableCell colSpan={6} className="text-center h-24">
+                <TableCell colSpan={7} className="text-center h-24">
                   {user ? "No appointments found." : "Please log in to see your appointments."}
                 </TableCell>
               </TableRow>
