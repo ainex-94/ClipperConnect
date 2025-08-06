@@ -3,10 +3,6 @@
 'use server';
 import 'server-only';
 
-// Load environment variables at the very top
-import { config } from 'dotenv';
-config();
-
 import { cookies } from 'next/headers';
 import { initializeApp, getApps, getApp, type App, type ServiceAccount, cert } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
