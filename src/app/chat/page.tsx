@@ -6,10 +6,11 @@ import { ChatLayout } from "@/components/chat/chat-layout";
 import { getChats } from "@/lib/firebase/firestore";
 import { useAuth } from "@/hooks/use-auth";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { type Chat } from "@/lib/firebase/firestore";
+import { Loader2 } from "lucide-react";
 
-export default function ChatPage() {
+function ChatPageContent() {
     const { user } = useAuth();
     const [chats, setChats] = useState<Chat[]>([]);
     const [loading, setLoading] = useState(true);
@@ -30,7 +31,12 @@ export default function ChatPage() {
 
 
     if (loading) {
-        return <div className="flex h-full items-center justify-center">Loading chats...</div>;
+        return (
+          <div className="flex h-full items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin" />
+            <span className="ml-2">Loading chats...</span>
+          </div>
+        );
     }
 
     return (
@@ -40,5 +46,19 @@ export default function ChatPage() {
             defaultChatId={chatId || undefined}
         />
       </main>
+    )
+}
+
+
+export default function ChatPage() {
+    return (
+        <Suspense fallback={
+          <div className="flex h-full items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin" />
+             <span className="ml-2">Loading...</span>
+          </div>
+        }>
+            <ChatPageContent />
+        </Suspense>
     )
 }
