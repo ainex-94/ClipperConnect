@@ -59,7 +59,7 @@ export default function RegisterPage() {
   useEffect(() => {
     if (user) {
       const redirectPath = sessionStorage.getItem('redirectPath');
-      sessionStorage.removeItem('redirectPath');
+      sessionStorage.removeItem('redirectPath'); // Clean up the storage
       router.push(redirectPath || "/");
     }
   }, [user, router]);
