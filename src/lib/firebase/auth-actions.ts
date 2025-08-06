@@ -1,7 +1,9 @@
-
 // src/lib/firebase/auth-actions.ts
 'use server';
 import 'server-only';
+import { config } from 'dotenv';
+config();
+
 
 import { cookies } from 'next/headers';
 import { initializeApp, getApps, getApp, type App, type ServiceAccount, cert } from 'firebase-admin/app';
