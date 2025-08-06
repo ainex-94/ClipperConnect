@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { collection, getDocs, getDoc, doc, query, where, DocumentData, Timestamp, serverTimestamp, addDoc, setDoc, orderBy, limit, updateDoc, or } from 'firebase/firestore';
@@ -110,20 +111,25 @@ export async function getDocument(collectionName: string, docId: string) {
 export async function getAppointmentsForUser(userId: string, userRole: UserProfile['role']): Promise<Appointment[]> {
     let q;
     if (userRole === 'admin') {
+        // Admin sees all appointments
         q = query(collection(db, "appointments"), orderBy('dateTime', 'desc'));
-    } else if (userRole === 'barber') {
-        q = query(collection(db, "appointments"), where('barberId', '==', userId));
-    } else { // customer
-        q = query(collection(db, "appointments"), where('customerId', '==', userId));
+    } else {
+        // Customers and Barbers see appointments where they are either the customer or the barber.
+        // This handles cases where a barber might also be a customer of another barber.
+        q = query(
+            collection(db, "appointments"),
+            or(
+                where('customerId', '==', userId),
+                where('barberId', '==', userId)
+            )
+        );
     }
 
     const querySnapshot = await getDocs(q);
     const appointments = querySnapshot.docs.map(doc => safeJsonParse({ id: doc.id, ...doc.data() })) as Appointment[];
 
-    // Sort client-side for non-admin roles to avoid composite index requirement
-    if (userRole !== 'admin') {
-      appointments.sort((a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime());
-    }
+    // Sort client-side to avoid composite index requirement
+    appointments.sort((a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime());
     
     return appointments;
 }

@@ -10,6 +10,7 @@ import { getCurrentUser } from "@/lib/firebase/auth-actions";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { StartChatButton } from "@/components/start-chat-button";
+import { redirect } from "next/navigation";
 
 interface Appointment {
   id: string;
@@ -28,7 +29,7 @@ export default async function AppointmentsPage() {
   if (!user) {
     // This case should be handled by the main layout, but it's a good practice
     // to have a fallback to prevent rendering errors.
-    return null;
+    redirect('/login');
   }
 
   const appointments: Appointment[] = await getAppointmentsForUser(user.uid, user.role);
@@ -73,7 +74,7 @@ export default async function AppointmentsPage() {
           </TableHeader>
           <TableBody>
             {appointments.map((appointment) => {
-               const otherUserId = user.role === 'barber' ? appointment.customerId : appointment.barberId;
+               const otherUserId = user.uid === appointment.barberId ? appointment.customerId : appointment.barberId;
                return (
                 <TableRow key={appointment.id}>
                     <TableCell className="font-medium">{appointment.customerName}</TableCell>
