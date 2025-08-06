@@ -14,15 +14,15 @@ import { Loader2 } from 'lucide-react';
 import { StartChatButton } from '@/components/start-chat-button';
 
 export default function DashboardPage() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [upcomingAppointments, setUpcomingAppointments] = useState<Appointment[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(true);
 
   useEffect(() => {
     if (user) {
       const fetchAppointments = async () => {
-        setLoading(true);
+        setDataLoading(true);
         const userAppointments = await getAppointmentsForUser(user.uid, user.role);
         setAppointments(userAppointments);
 
@@ -42,24 +42,24 @@ export default function DashboardPage() {
           .sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
         
         setUpcomingAppointments(upcoming);
-        setLoading(false);
+        setDataLoading(false);
       };
 
       fetchAppointments();
+    } else if (!loading) {
+      // If user is not logged in and auth check is complete
+      setDataLoading(false);
     }
-  }, [user]);
+  }, [user, loading]);
 
   if (loading) {
     return <div className="flex items-center justify-center h-full"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   }
-  
-  if (!user) {
-    return null; 
-  }
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 fade-in-animation">
-      {user.role !== 'customer' && (
+      
+      {(!user || user.role !== 'customer') && (
         <div className="lg:col-span-2">
           <Card>
             <CardHeader>
@@ -69,58 +69,68 @@ export default function DashboardPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <RescheduleTool />
+              {user ? (
+                <RescheduleTool />
+              ) : (
+                <p className="text-muted-foreground">Please log in as a barber or admin to use the rescheduling tool.</p>
+              )}
             </CardContent>
           </Card>
         </div>
       )}
 
-      <div className={user.role === 'customer' ? "lg:col-span-3" : "lg:col-span-1"}>
+      <div className={!user || user.role === 'customer' ? "lg:col-span-3" : "lg:col-span-1"}>
         <Card>
           <CardHeader>
             <CardTitle>Upcoming Appointments</CardTitle>
             <CardDescription>Here are your confirmed appointments for today.</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {upcomingAppointments.length > 0 ? (
-                upcomingAppointments.map((appointment, index) => {
-                  const otherPersonName = user.role === 'barber' ? appointment.customerName : appointment.barberName;
-                  const otherPersonId = user.role === 'barber' ? appointment.customerId : appointment.barberId;
-                  const otherPersonPhoto = user.role === 'barber' ? appointment.customerPhotoURL : appointment.barberPhotoURL;
-                  
-                  return (
-                  <div key={appointment.id}>
-                    <div className="flex items-center gap-4">
-                      <Avatar className="h-10 w-10">
-                        <AvatarImage data-ai-hint="person portrait" src={otherPersonPhoto} alt={otherPersonName} />
-                        <AvatarFallback>{otherPersonName?.charAt(0)}</AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="font-medium">{otherPersonName}</p>
-                                <p className="text-sm text-muted-foreground">{appointment.service}</p>
-                            </div>
-                            <div className="text-right">
-                                <p className="font-semibold">{format(new Date(appointment.dateTime), "p")}</p>
-                            </div>
+            {dataLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin" />
+              </div>
+            ) : user && upcomingAppointments.length > 0 ? (
+                <div className="space-y-4">
+                  {upcomingAppointments.map((appointment, index) => {
+                    const otherPersonName = user.role === 'barber' ? appointment.customerName : appointment.barberName;
+                    const otherPersonId = user.role === 'barber' ? appointment.customerId : appointment.barberId;
+                    const otherPersonPhoto = user.role === 'barber' ? appointment.customerPhotoURL : appointment.barberPhotoURL;
+                    
+                    return (
+                    <div key={appointment.id}>
+                      <div className="flex items-center gap-4">
+                        <Avatar className="h-10 w-10">
+                          <AvatarImage data-ai-hint="person portrait" src={otherPersonPhoto} alt={otherPersonName} />
+                          <AvatarFallback>{otherPersonName?.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between">
+                              <div>
+                                  <p className="font-medium">{otherPersonName}</p>
+                                  <p className="text-sm text-muted-foreground">{appointment.service}</p>
+                              </div>
+                              <div className="text-right">
+                                  <p className="font-semibold">{format(new Date(appointment.dateTime), "p")}</p>
+                              </div>
+                          </div>
+                          <StartChatButton 
+                            otherUserId={otherPersonId}
+                            variant="outline"
+                            size="sm"
+                            className="mt-2 w-full sm:w-auto"
+                          />
                         </div>
-                        <StartChatButton 
-                          otherUserId={otherPersonId}
-                          variant="outline"
-                          size="sm"
-                          className="mt-2 w-full sm:w-auto"
-                        />
                       </div>
+                      {index < upcomingAppointments.length - 1 && <Separator className="mt-4" />}
                     </div>
-                    {index < upcomingAppointments.length - 1 && <Separator className="mt-4" />}
-                  </div>
-                )})
-              ) : (
-                <p className="text-muted-foreground text-center py-8">No upcoming appointments today.</p>
-              )}
-            </div>
+                  )})}
+              </div>
+            ) : (
+              <p className="text-muted-foreground text-center py-8">
+                {user ? "No upcoming appointments today." : "Log in to see your appointments."}
+              </p>
+            )}
           </CardContent>
         </Card>
       </div>

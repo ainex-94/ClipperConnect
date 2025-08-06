@@ -43,9 +43,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (user) {
-      const redirectPath = sessionStorage.getItem('redirectPath');
-      sessionStorage.removeItem('redirectPath'); // Clean up the storage
-      router.push(redirectPath || "/");
+      router.push("/");
     }
   }, [user, router]);
   

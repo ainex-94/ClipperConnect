@@ -57,8 +57,6 @@ const clearSession = async () => {
     }
 }
 
-const REDIRECT_PATH_KEY = 'redirectPath';
-
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -112,9 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   
   const handleAuthSuccess = async (firebaseUser: FirebaseUser) => {
       await createSession(firebaseUser);
-      const redirectPath = sessionStorage.getItem(REDIRECT_PATH_KEY);
-      sessionStorage.removeItem(REDIRECT_PATH_KEY);
-      router.push(redirectPath || "/");
+      router.push("/");
   }
 
   const createFirestoreUser = async (firebaseUser: FirebaseUser, role: 'customer' | 'barber' | 'admin', displayName?: string) => {
