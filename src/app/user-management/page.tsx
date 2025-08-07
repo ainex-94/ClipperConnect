@@ -74,7 +74,11 @@ export default function UserManagementPage() {
       {
         accessorKey: 'createdAt',
         header: 'Member Since',
-        cell: ({ row }) => <div className="text-right">{row.original.createdAt ? format(new Date(row.original.createdAt), 'PPP') : 'N/A'}</div>
+        cell: ({ row }) => {
+            const date = row.original.createdAt ? new Date(row.original.createdAt) : null;
+            const isValidDate = date && !isNaN(date.getTime());
+            return <div className="text-right">{isValidDate ? format(date, 'PPP') : 'N/A'}</div>
+        }
       }
     ];
 
