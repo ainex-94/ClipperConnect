@@ -43,13 +43,14 @@ export function ChatLayout({ chats: initialChats, defaultChatId }: ChatLayoutPro
     }
 
     return (
-        <div className="relative h-full w-full bg-card overflow-hidden">
+        <div className="relative flex h-full w-full bg-card overflow-hidden">
              <div className={cn(
-                "absolute top-0 left-0 w-full h-full transition-transform duration-300 ease-in-out md:static md:w-1/3 lg:w-1/4 md:border-r md:transform-none",
-                selectedChat && isMobile ? "-translate-x-full" : "translate-x-0"
+                "transition-transform duration-300 ease-in-out",
+                "w-full md:w-1/3 lg:w-1/4 md:border-r",
+                isMobile && selectedChat ? "absolute -translate-x-full" : "static translate-x-0"
              )}>
                 <div className="flex flex-col h-full">
-                    <header className="p-4 border-b">
+                    <header className="p-4 border-b shrink-0">
                         <h2 className="text-xl font-bold">Conversations</h2>
                     </header>
                     <ChatList
@@ -60,14 +61,14 @@ export function ChatLayout({ chats: initialChats, defaultChatId }: ChatLayoutPro
                 </div>
             </div>
              <div className={cn(
-                "absolute top-0 left-0 w-full h-full transition-transform duration-300 ease-in-out md:static md:flex-1 md:transform-none",
-                selectedChat && isMobile ? "translate-x-0" : "translate-x-full"
+                "transition-transform duration-300 ease-in-out flex-1",
+                 isMobile ? (selectedChat ? "absolute inset-0 translate-x-0" : "absolute inset-0 translate-x-full") : "static"
             )}>
                  <ChatWindow 
                     chat={selectedChat} 
                     onBack={handleBack} 
                     isMobile={isMobile} 
-                    key={selectedChat?.id} // Add key to force re-render on chat change
+                    key={selectedChat?.id}
                 />
             </div>
         </div>
