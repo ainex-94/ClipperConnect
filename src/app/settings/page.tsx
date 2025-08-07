@@ -1,4 +1,3 @@
-
 // src/app/settings/page.tsx
 "use client"
 
@@ -18,7 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect, useRef } from "react";
 import { Loader2, Camera, Upload, X, MapPin, LocateFixed } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { uploadImage } from "@/app/actions/image-actions";
+import { uploadImage } from "@/app/actions";
 import Image from "next/image";
 import { AddressAutocompleteInput } from "@/components/address-autocomplete";
 
