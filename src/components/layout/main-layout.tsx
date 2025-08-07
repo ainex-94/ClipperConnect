@@ -12,9 +12,9 @@ import { Button } from "../ui/button";
 
 const PUBLIC_ROUTES = ['/login', '/register'];
 
-function AccessDeniedScreen({ status, onLogout }: { status: 'Pending' | 'Rejected', onLogout: () => void }) {
+function AccessDeniedScreen({ status, onLogout, email }: { status: 'Pending' | 'Rejected', onLogout: () => void, email?: string }) {
     return (
-        <div className="flex min-h-screen items-center justify-center bg-muted/40">
+        <div className="flex min-h-screen items-center justify-center bg-muted/40 p-4">
             <Card className="w-full max-w-md text-center">
                 <CardHeader>
                     {status === 'Pending' ? <ShieldAlert className="mx-auto h-12 w-12 text-yellow-500" /> : <UserX className="mx-auto h-12 w-12 text-destructive" />}
@@ -23,6 +23,7 @@ function AccessDeniedScreen({ status, onLogout }: { status: 'Pending' | 'Rejecte
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
+                    {email && <p className="text-sm font-medium text-foreground mb-2">{email}</p>}
                     <CardDescription>
                         {status === 'Pending' 
                             ? "Your account is currently under review by our administrators. You will be notified once a decision has been made. Thank you for your patience."
@@ -64,7 +65,7 @@ export default function MainLayout({
   
   // If user is logged in but is not an admin and not approved, show the relevant screen
   if (user && user.role !== 'admin' && user.accountStatus !== 'Approved') {
-      return <AccessDeniedScreen status={user.accountStatus || 'Pending'} onLogout={logout} />;
+      return <AccessDeniedScreen status={user.accountStatus || 'Pending'} onLogout={logout} email={user.email} />;
   }
 
   // For all other routes, show the main application layout.
