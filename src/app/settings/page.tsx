@@ -246,11 +246,14 @@ export default function SettingsPage() {
 
       if (user.role === 'barber') {
         updateData.address = formData.address;
-        updateData.latitude = parseFloat(formData.latitude) || null;
-        updateData.longitude = parseFloat(formData.longitude) || null;
+        
+        const lat = parseFloat(formData.latitude);
+        const lng = parseFloat(formData.longitude);
+        updateData.latitude = !isNaN(lat) ? lat : null;
+        updateData.longitude = !isNaN(lng) ? lng : null;
         
         const availabilityToSave: any = {};
-        daysOfWeek.forEach(day => {
+        Object.keys(availability).forEach(day => {
           if (availability[day]?.enabled) {
             availabilityToSave[day] = {
               start: availability[day].start,
