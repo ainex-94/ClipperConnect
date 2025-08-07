@@ -16,13 +16,9 @@ import { type ColumnDef } from "@tanstack/react-table";
 import Link from "next/link";
 
 
-interface Customer extends UserProfile {
-    totalAppointments?: number;
-}
-
 export default function CustomersPage() {
     const { user } = useAuth();
-    const [customers, setCustomers] = useState<Customer[]>([]);
+    const [customers, setCustomers] = useState<UserProfile[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -52,7 +48,7 @@ export default function CustomersPage() {
     );
   }
     
-  const columns: ColumnDef<Customer>[] = [
+  const columns: ColumnDef<UserProfile>[] = [
     {
       accessorKey: 'displayName',
       header: 'Name',
@@ -77,14 +73,13 @@ export default function CustomersPage() {
       )
     },
     {
-      accessorKey: 'totalAppointments',
-      header: 'Total Appointments',
-      cell: ({ row }) => <div className="text-center">{row.original.totalAppointments || 0}</div>
-    },
-    {
       accessorKey: 'createdAt',
       header: 'Member Since',
-      cell: ({ row }) => <div className="text-center">{format(new Date(row.original.createdAt), 'PPP')}</div>
+      cell: ({ row }) => {
+        const date = new Date(row.original.createdAt);
+        const isValidDate = !isNaN(date.getTime());
+        return <div className="text-center">{isValidDate ? format(date, 'PPP') : 'N/A'}</div>
+      }
     },
     {
       id: "actions",
