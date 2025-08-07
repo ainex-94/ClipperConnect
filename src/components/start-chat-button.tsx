@@ -7,6 +7,7 @@ import { getOrCreateChat } from "@/app/actions";
 import { Button } from "@/components/ui/button";
 import { Loader2, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useRouter } from "next/navigation";
 
 interface StartChatButtonProps {
   otherUserId: string;
@@ -19,6 +20,7 @@ interface StartChatButtonProps {
 export function StartChatButton({ otherUserId, className, variant="outline", size="sm", asIcon = false }: StartChatButtonProps) {
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
 
   const handleStartChat = async (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent card/row click events
@@ -27,7 +29,7 @@ export function StartChatButton({ otherUserId, className, variant="outline", siz
     try {
       const chatId = await getOrCreateChat(user.uid, otherUserId);
       const chatUrl = `/chat?chatId=${chatId}`;
-      window.open(chatUrl, 'clipperconnect_chat');
+      router.push(chatUrl);
     } catch (error) {
       console.error("Failed to start chat:", error);
       // Optionally show a toast message here
