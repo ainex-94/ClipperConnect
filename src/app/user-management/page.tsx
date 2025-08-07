@@ -74,7 +74,7 @@ export default function UserManagementPage() {
       {
         accessorKey: 'createdAt',
         header: 'Member Since',
-        cell: ({ row }) => <div className="text-right">{format(new Date(row.original.createdAt), 'PPP')}</div>
+        cell: ({ row }) => <div className="text-right">{row.original.createdAt ? format(new Date(row.original.createdAt), 'PPP') : 'N/A'}</div>
       }
     ];
 
