@@ -9,8 +9,9 @@ import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
-import { Send, ArrowLeft } from "lucide-react";
+import { Send, ArrowLeft, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ScrollArea } from "../ui/scroll-area";
 
 interface ChatWindowProps {
   chat: Chat | null;
@@ -22,7 +23,7 @@ export function ChatWindow({ chat, isMobile, onBack }: ChatWindowProps) {
   const { user } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
-  const messagesEndRef = useRef<null | HTMLDivElement>(null);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (chat) {
@@ -31,7 +32,7 @@ export function ChatWindow({ chat, isMobile, onBack }: ChatWindowProps) {
         orderBy("timestamp", "asc")
       );
       const unsubscribe = onSnapshot(q, (querySnapshot) => {
-        const msgs = querySnapshot.docs.map(doc => doc.data() as Message);
+        const msgs = querySnapshot.docs.map(doc => ({...doc.data(), id: doc.id } as Message));
         setMessages(msgs);
       });
       return () => unsubscribe();
@@ -39,7 +40,13 @@ export function ChatWindow({ chat, isMobile, onBack }: ChatWindowProps) {
   }, [chat]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    // Scroll to bottom when new messages arrive
+    if (scrollAreaRef.current) {
+        scrollAreaRef.current.scrollTo({
+            top: scrollAreaRef.current.scrollHeight,
+            behavior: "smooth"
+        });
+    }
   }, [messages]);
   
   const handleSendMessage = async (e: React.FormEvent) => {
@@ -55,8 +62,10 @@ export function ChatWindow({ chat, isMobile, onBack }: ChatWindowProps) {
 
   if (!chat || !user) {
     return (
-      <div className="flex h-full items-center justify-center text-muted-foreground">
-        Select a conversation to start chatting.
+      <div className="flex h-full flex-col items-center justify-center text-muted-foreground p-8 text-center">
+        <MessageSquare className="h-16 w-16 mb-4 text-muted-foreground/50"/>
+        <h2 className="text-xl font-semibold">Select a Conversation</h2>
+        <p className="text-sm">Choose one of your existing conversations to continue chatting.</p>
       </div>
     );
   }
@@ -64,10 +73,10 @@ export function ChatWindow({ chat, isMobile, onBack }: ChatWindowProps) {
   const otherParticipant = chat.participants.find(p => p.id !== user.uid);
 
   return (
-    <div className="flex flex-col h-full">
-      <header className="flex items-center gap-4 border-b p-4">
+    <div className="flex flex-col h-full bg-background">
+      <header className="flex items-center gap-4 border-b p-4 shrink-0">
         {isMobile && (
-          <Button variant="ghost" size="icon" onClick={onBack}>
+          <Button variant="ghost" size="icon" onClick={onBack} className="-ml-2">
             <ArrowLeft className="h-6 w-6" />
           </Button>
         )}
@@ -75,53 +84,59 @@ export function ChatWindow({ chat, isMobile, onBack }: ChatWindowProps) {
             <AvatarImage data-ai-hint="person portrait" src={otherParticipant?.photoURL} />
             <AvatarFallback>{otherParticipant?.displayName?.[0]}</AvatarFallback>
         </Avatar>
-        <h2 className="text-xl font-bold">{otherParticipant?.displayName}</h2>
+        <h2 className="text-lg font-bold">{otherParticipant?.displayName}</h2>
       </header>
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.map((msg, index) => (
-          <div
-            key={index}
-            className={cn("flex items-end gap-2", {
-              "justify-end": msg.senderId === user.uid,
-            })}
-          >
-            {msg.senderId !== user.uid && (
-              <Avatar className="h-8 w-8">
-                <AvatarImage data-ai-hint="person portrait" src={otherParticipant?.photoURL} />
-                <AvatarFallback>{otherParticipant?.displayName?.[0]}</AvatarFallback>
-              </Avatar>
-            )}
+      
+      <ScrollArea className="flex-1" ref={scrollAreaRef}>
+          <div className="p-4 space-y-6">
+            {messages.map((msg) => (
             <div
-              className={cn(
-                "max-w-xs rounded-lg p-3 lg:max-w-md",
-                {
-                  "bg-primary text-primary-foreground": msg.senderId === user.uid,
-                  "bg-muted": msg.senderId !== user.uid,
-                }
-              )}
+                key={msg.id}
+                className={cn("flex items-end gap-2", {
+                "justify-start": msg.senderId !== user.uid,
+                "justify-end": msg.senderId === user.uid,
+                })}
             >
-              <p className="text-sm">{msg.text}</p>
+                {msg.senderId !== user.uid && (
+                <Avatar className="h-8 w-8 self-start">
+                    <AvatarImage data-ai-hint="person portrait" src={otherParticipant?.photoURL} />
+                    <AvatarFallback>{otherParticipant?.displayName?.[0]}</AvatarFallback>
+                </Avatar>
+                )}
+                <div
+                className={cn(
+                    "max-w-xs md:max-w-md lg:max-w-lg rounded-xl p-3 px-4 shadow-sm",
+                    {
+                    "bg-primary text-primary-foreground rounded-br-none": msg.senderId === user.uid,
+                    "bg-muted text-foreground rounded-bl-none": msg.senderId !== user.uid,
+                    }
+                )}
+                >
+                <p className="text-sm break-words">{msg.text}</p>
+                </div>
+                {msg.senderId === user.uid && (
+                <Avatar className="h-8 w-8 self-start">
+                    <AvatarImage data-ai-hint="person" src={user?.photoURL || ''} />
+                    <AvatarFallback>{user?.displayName?.[0]}</AvatarFallback>
+                </Avatar>
+                )}
             </div>
-             {msg.senderId === user.uid && (
-              <Avatar className="h-8 w-8">
-                <AvatarImage data-ai-hint="person" src={user?.photoURL || ''} />
-                <AvatarFallback>{user?.displayName?.[0]}</AvatarFallback>
-              </Avatar>
-            )}
-          </div>
-        ))}
-        <div ref={messagesEndRef} />
-      </div>
-      <footer className="border-t p-4">
+            ))}
+         </div>
+      </ScrollArea>
+
+      <footer className="border-t p-4 shrink-0">
         <form onSubmit={handleSendMessage} className="flex items-center gap-2">
           <Input
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             placeholder="Type a message..."
             autoComplete="off"
+            className="h-12 text-base"
           />
-          <Button type="submit" size="icon">
-            <Send className="h-4 w-4" />
+          <Button type="submit" size="icon" className="h-12 w-12 rounded-full">
+            <Send className="h-5 w-5" />
+            <span className="sr-only">Send Message</span>
           </Button>
         </form>
       </footer>

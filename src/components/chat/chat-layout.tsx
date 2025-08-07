@@ -2,7 +2,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Sidebar, SidebarContent, SidebarHeader } from "@/components/ui/sidebar";
 import { ChatList } from "./chat-list";
 import { ChatWindow } from "./chat-window";
 import { type Chat } from "@/lib/firebase/firestore";
@@ -26,17 +25,14 @@ export function ChatLayout({ chats: initialChats, defaultChatId }: ChatLayoutPro
             if (defaultChat) {
                 setSelectedChat(defaultChat);
             }
-        } else {
-            // On mobile, if no chat is selected, ensure we don't show an empty window
-            if (isMobile) {
-                setSelectedChat(null);
-            }
+        } else if (initialChats.length > 0 && !isMobile) {
+            // Select the first chat by default on desktop
+            setSelectedChat(initialChats[0]);
         }
     }, [defaultChatId, initialChats, isMobile]);
 
     const handleChatSelect = (chat: Chat) => {
         setSelectedChat(chat);
-        // Only update URL on desktop to avoid weird back button behavior on mobile
         if (!isMobile) {
           router.push(`/chat?chatId=${chat.id}`, { scroll: false });
         }
@@ -46,43 +42,33 @@ export function ChatLayout({ chats: initialChats, defaultChatId }: ChatLayoutPro
         setSelectedChat(null);
     }
 
-    if (isMobile) {
-        return (
-            <div className="flex flex-col h-full bg-card">
-                {selectedChat ? (
-                    <ChatWindow chat={selectedChat} onBack={handleBack} isMobile={isMobile} />
-                ) : (
-                    <>
-                        <header className="p-4 border-b">
-                            <h2 className="text-xl font-bold">Conversations</h2>
-                        </header>
-                         <ChatList
-                            chats={initialChats}
-                            selectedChat={selectedChat}
-                            onChatSelect={handleChatSelect}
-                        />
-                    </>
-                )}
-            </div>
-        )
-    }
-
     return (
-        <div className="flex h-[calc(100vh-8rem)] border rounded-lg overflow-hidden bg-card">
-            <Sidebar className="w-full max-w-xs border-r">
-                <SidebarHeader className="p-4">
-                    <h2 className="text-xl font-bold">Conversations</h2>
-                </SidebarHeader>
-                <SidebarContent>
+        <div className="relative h-full w-full bg-card overflow-hidden">
+             <div className={cn(
+                "absolute top-0 left-0 w-full h-full transition-transform duration-300 ease-in-out md:static md:w-1/3 lg:w-1/4 md:border-r md:transform-none",
+                selectedChat && isMobile ? "-translate-x-full" : "translate-x-0"
+             )}>
+                <div className="flex flex-col h-full">
+                    <header className="p-4 border-b">
+                        <h2 className="text-xl font-bold">Conversations</h2>
+                    </header>
                     <ChatList
                         chats={initialChats}
                         selectedChat={selectedChat}
                         onChatSelect={handleChatSelect}
                     />
-                </SidebarContent>
-            </Sidebar>
-            <div className="flex-1 flex flex-col">
-                <ChatWindow chat={selectedChat} isMobile={isMobile} />
+                </div>
+            </div>
+             <div className={cn(
+                "absolute top-0 left-0 w-full h-full transition-transform duration-300 ease-in-out md:static md:flex-1 md:transform-none",
+                selectedChat && isMobile ? "translate-x-0" : "translate-x-full"
+            )}>
+                 <ChatWindow 
+                    chat={selectedChat} 
+                    onBack={handleBack} 
+                    isMobile={isMobile} 
+                    key={selectedChat?.id} // Add key to force re-render on chat change
+                />
             </div>
         </div>
     );

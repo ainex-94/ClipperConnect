@@ -33,7 +33,6 @@ function ChatPageContent() {
         return (
           <div className="flex h-full items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin" />
-            <span className="ml-2">Loading chats...</span>
           </div>
         );
     }
@@ -55,7 +54,6 @@ export default function ChatPage() {
         <Suspense fallback={
           <div className="flex h-full items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin" />
-             <span className="ml-2">Loading...</span>
           </div>
         }>
             <ChatPageContent />
