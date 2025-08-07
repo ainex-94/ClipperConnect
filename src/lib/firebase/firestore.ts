@@ -23,7 +23,7 @@ export interface UserProfile {
         [key: string]: {
             start: string;
             end: string;
-        } | null
+        }
     },
     coins?: number;
     walletBalance?: number;
@@ -278,6 +278,8 @@ export async function updateAverageRating(userId: string) {
         }
 
         const userData = userDoc.data() as UserProfile;
+        const ratingField = userData.role === 'barber' ? 'barberRating' : 'customerRating';
+        const userIdentifierField = userData.role === 'barber' ? 'barberId' : 'customerId';
         
         let newRatingSum = 0;
         let newTotalRatings = 0;
@@ -285,20 +287,16 @@ export async function updateAverageRating(userId: string) {
         // Query appointments where this user was rated
         const appointmentQuery = query(
             collection(db, "appointments"),
-            userData.role === 'barber'
-                ? where('barberId', '==', userId)
-                : where('customerId', '==', userId)
+            where(userIdentifierField, '==', userId),
+            where(ratingField, '>', 0) // Ensure we only get rated appointments
         );
 
         const appointmentSnapshot = await getDocs(appointmentQuery);
 
         appointmentSnapshot.forEach(appointmentDoc => {
             const appointmentData = appointmentDoc.data();
-            const ratingField = userData.role === 'barber' ? 'barberRating' : 'customerRating';
-            if (appointmentData[ratingField]) {
-                newRatingSum += appointmentData[ratingField];
-                newTotalRatings++;
-            }
+            newRatingSum += appointmentData[ratingField];
+            newTotalRatings++;
         });
         
         const newAverageRating = newTotalRatings > 0 ? newRatingSum / newTotalRatings : 0;

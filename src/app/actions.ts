@@ -313,7 +313,6 @@ export async function rateAppointment(values: z.infer<typeof rateAppointmentSche
     const { appointmentId, ratedUserId, rating, ratingField, reviewText } = validatedFields.data;
 
     try {
-        // Update the rating in the appointment document
         const appointmentRef = doc(db, "appointments", appointmentId);
         
         const updateData: { [key: string]: any } = { [ratingField]: rating };
@@ -322,8 +321,6 @@ export async function rateAppointment(values: z.infer<typeof rateAppointmentSche
         }
         
         await updateDoc(appointmentRef, updateData);
-
-        // Update the average rating for the user
         await updateAverageRating(ratedUserId);
 
         revalidatePath('/appointments');
