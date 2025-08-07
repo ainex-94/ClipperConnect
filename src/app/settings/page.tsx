@@ -20,6 +20,7 @@ import { Loader2, Camera, Upload, X, MapPin, LocateFixed } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { uploadImage } from "@/app/actions/image-actions";
 import Image from "next/image";
+import { AddressAutocompleteInput } from "@/components/address-autocomplete";
 
 const daysOfWeek = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
 
@@ -173,12 +174,10 @@ export default function SettingsPage() {
           const response = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${apiKey}`);
           const data = await response.json();
           if (data.status === 'OK' && data.results[0]) {
-            setFormData(prev => ({
-              ...prev,
-              address: data.results[0].formatted_address,
-              latitude: latitude.toString(),
-              longitude: longitude.toString(),
-            }));
+            handlePlaceSelect({
+              formatted_address: data.results[0].formatted_address,
+              geometry: { location: new google.maps.LatLng(latitude, longitude) }
+            } as google.maps.places.PlaceResult);
             toast({ title: 'Location Found', description: 'Address and coordinates have been updated.' });
           } else {
              throw new Error(data.error_message || 'No results found.');
@@ -216,6 +215,18 @@ export default function SettingsPage() {
         ...prev[day],
         [field]: value
       }
+    }));
+  };
+
+  const handlePlaceSelect = (place: google.maps.places.PlaceResult) => {
+    const lat = place.geometry?.location?.lat();
+    const lng = place.geometry?.location?.lng();
+
+    setFormData(prev => ({
+      ...prev,
+      address: place.formatted_address || prev.address,
+      latitude: lat?.toString() || '',
+      longitude: lng?.toString() || '',
     }));
   };
 
@@ -366,7 +377,13 @@ export default function SettingsPage() {
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="address">Full Address</Label>
-                    <Input id="address" value={formData.address} onChange={handleInputChange} placeholder="e.g., 123 Barber Street, Shop #4" />
+                    <AddressAutocompleteInput
+                      id="address"
+                      value={formData.address}
+                      onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
+                      onPlaceSelect={handlePlaceSelect}
+                      placeholder="e.g., 123 Barber Street, Shop #4"
+                    />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
