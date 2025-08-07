@@ -241,7 +241,7 @@ export default function SettingsPage() {
       const updateData: any = {
         displayName: formData.displayName.trim(),
         email: formData.email,
-        bio: formData.bio,
+        bio: formData.bio || '', // Ensure bio is not undefined
       };
 
       if (user.role === 'barber') {
