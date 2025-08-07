@@ -22,10 +22,10 @@ interface NearbyBarbersMapProps {
 function MapComponent({ barbers }: NearbyBarbersMapProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [map, setMap] = useState<google.maps.Map>();
+  const [markers, setMarkers] = useState<google.maps.Marker[]>([]);
   const [currentLocation, setCurrentLocation] = useState<google.maps.LatLngLiteral | null>(null);
 
   useEffect(() => {
-    // Get user's current location
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
@@ -36,8 +36,6 @@ function MapComponent({ barbers }: NearbyBarbersMapProps) {
           setCurrentLocation(pos);
         },
         () => {
-          // Handle location error (e.g., user denies permission)
-          // Default to a central location if permission is denied
           setCurrentLocation({ lat: 24.8607, lng: 67.0011 }); // Default to Karachi
         }
       );
@@ -53,7 +51,6 @@ function MapComponent({ barbers }: NearbyBarbersMapProps) {
       });
       setMap(newMap);
 
-      // Add marker for current location
       new google.maps.Marker({
         position: currentLocation,
         map: newMap,
@@ -72,14 +69,17 @@ function MapComponent({ barbers }: NearbyBarbersMapProps) {
 
   useEffect(() => {
     if (map) {
-      // Add markers for barbers
+      // Clear existing markers
+      markers.forEach(marker => marker.setMap(null));
+      const newMarkers: google.maps.Marker[] = [];
+
+      // Add markers for filtered barbers
       barbers.forEach((barber) => {
         if (barber.latitude && barber.longitude) {
           const marker = new google.maps.Marker({
             position: { lat: barber.latitude, lng: barber.longitude },
             map: map,
             title: barber.displayName,
-            icon: '/barber-pin.png' // Custom icon
           });
           
           const infoWindowContent = `
@@ -102,11 +102,12 @@ function MapComponent({ barbers }: NearbyBarbersMapProps) {
               map,
             });
           });
+          newMarkers.push(marker);
         }
       });
+      setMarkers(newMarkers);
     }
   }, [map, barbers]);
-
 
   return <div ref={ref} id="map" className="h-full w-full" />;
 }

@@ -2,7 +2,7 @@
 // src/app/barbers/page.tsx
 'use client';
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,11 +15,45 @@ import Image from 'next/image';
 import { NearbyBarbersMap } from "@/components/nearby-barbers-map";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Link from "next/link";
+import { Slider } from "@/components/ui/slider";
+import { Label } from "@/components/ui/label";
+
+// Haversine formula to calculate distance between two lat/lng points
+function getDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
+  const R = 6371; // Radius of the earth in km
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a =
+    0.5 - Math.cos(dLat) / 2 +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    (1 - Math.cos(dLon)) / 2;
+  return R * 2 * Math.asin(Math.sqrt(a));
+}
 
 export default function BarbersPage() {
   const { user } = useAuth();
   const [barbers, setBarbers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [filterDistance, setFilterDistance] = useState<number>(50); // Default 50km
+
+  useEffect(() => {
+    // Get user's location
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setCurrentLocation({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          });
+        },
+        () => {
+          // Handle location error or denial by doing nothing, so no distance filter is applied.
+          console.warn("Could not get user location. Distance filter disabled.");
+        }
+      );
+    }
+  }, []);
 
   useEffect(() => {
     const fetchBarbers = async () => {
@@ -31,15 +65,40 @@ export default function BarbersPage() {
 
     fetchBarbers();
   }, []);
+  
+  const filteredBarbers = useMemo(() => {
+    if (!currentLocation) {
+        return barbers; // If no location, return all barbers
+    }
+    return barbers.filter(barber => {
+        if (!barber.latitude || !barber.longitude) return false;
+        const distance = getDistance(currentLocation.lat, currentLocation.lng, barber.latitude, barber.longitude);
+        return distance <= filterDistance;
+    });
+  }, [barbers, currentLocation, filterDistance]);
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold">Our Barbers</h1>
           <p className="text-muted-foreground">The artists behind the clippers.</p>
         </div>
-        {user?.role === 'admin' && <Button>Add New Barber</Button>}
+        {currentLocation && (
+           <div className="w-full sm:w-auto sm:max-w-xs space-y-2">
+              <Label htmlFor="distance-slider" className="flex justify-between">
+                <span>Distance</span>
+                <span>{filterDistance} km</span>
+              </Label>
+              <Slider
+                id="distance-slider"
+                defaultValue={[50]}
+                max={100}
+                step={1}
+                onValueChange={(value) => setFilterDistance(value[0])}
+              />
+          </div>
+        )}
       </div>
 
       <Tabs defaultValue="list">
@@ -54,7 +113,7 @@ export default function BarbersPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 mt-4">
-              {barbers.map((barber) => {
+              {filteredBarbers.map((barber) => {
                 const images = [barber.photoURL, ...(barber.shopImageUrls || [])];
                 return (
                   <Link key={barber.id} href={`/barbers/${barber.id}`} className="flex flex-col">
@@ -114,8 +173,10 @@ export default function BarbersPage() {
                   </Link>
                 )
               })}
-              {barbers.length === 0 && (
-                <p className="text-muted-foreground col-span-full text-center">No barbers have registered yet.</p>
+              {filteredBarbers.length === 0 && (
+                <p className="text-muted-foreground col-span-full text-center py-12">
+                  No barbers found within {filterDistance}km. Try expanding your search radius.
+                </p>
               )}
             </div>
           )}
@@ -124,7 +185,7 @@ export default function BarbersPage() {
             <Card className="mt-4">
                 <CardContent className="p-0">
                     <div className="h-[600px] w-full">
-                       <NearbyBarbersMap barbers={barbers} />
+                       <NearbyBarbersMap barbers={filteredBarbers} />
                     </div>
                 </CardContent>
             </Card>
