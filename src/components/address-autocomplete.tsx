@@ -45,7 +45,7 @@ function AutocompleteInputComponent({ value, onChange, onPlaceSelect, placeholde
 }
 
 export function AddressAutocompleteInput(props: AutocompleteInputProps) {
-  const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 
   if (!apiKey) {
     console.error("Google Maps API Key is missing.");

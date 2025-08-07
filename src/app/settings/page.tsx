@@ -163,7 +163,7 @@ export default function SettingsPage() {
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         const { latitude, longitude } = position.coords;
-        const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+        const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
         if (!apiKey) {
            toast({ variant: 'destructive', title: 'Configuration Error', description: 'Google Maps API Key is missing.' });
            setIsFetchingLocation(false);
