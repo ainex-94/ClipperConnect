@@ -17,6 +17,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Link from "next/link";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 
 // Haversine formula to calculate distance between two lat/lng points
 function getDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
@@ -36,6 +37,7 @@ export default function BarbersPage() {
   const [loading, setLoading] = useState(true);
   const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [filterDistance, setFilterDistance] = useState<number>(50); // Default 50km
+  const [isDistanceFilterEnabled, setIsDistanceFilterEnabled] = useState(false);
 
   useEffect(() => {
     // Get user's location
@@ -46,10 +48,12 @@ export default function BarbersPage() {
             lat: position.coords.latitude,
             lng: position.coords.longitude,
           });
+          setIsDistanceFilterEnabled(true);
         },
         () => {
           // Handle location error or denial by doing nothing, so no distance filter is applied.
           console.warn("Could not get user location. Distance filter disabled.");
+          setIsDistanceFilterEnabled(false);
         }
       );
     }
@@ -67,15 +71,15 @@ export default function BarbersPage() {
   }, []);
   
   const filteredBarbers = useMemo(() => {
-    if (!currentLocation) {
-        return barbers; // If no location, return all barbers
+    if (!isDistanceFilterEnabled || !currentLocation) {
+        return barbers; // If filter is disabled or no location, return all barbers
     }
     return barbers.filter(barber => {
         if (!barber.latitude || !barber.longitude) return false;
         const distance = getDistance(currentLocation.lat, currentLocation.lng, barber.latitude, barber.longitude);
         return distance <= filterDistance;
     });
-  }, [barbers, currentLocation, filterDistance]);
+  }, [barbers, currentLocation, filterDistance, isDistanceFilterEnabled]);
 
   return (
     <div className="space-y-6">
@@ -85,18 +89,30 @@ export default function BarbersPage() {
           <p className="text-muted-foreground">The artists behind the clippers.</p>
         </div>
         {currentLocation && (
-           <div className="w-full sm:w-auto sm:max-w-xs space-y-2">
-              <Label htmlFor="distance-slider" className="flex justify-between">
-                <span>Distance</span>
-                <span>{filterDistance} km</span>
-              </Label>
-              <Slider
-                id="distance-slider"
-                defaultValue={[50]}
-                max={100}
-                step={1}
-                onValueChange={(value) => setFilterDistance(value[0])}
+          <div className="flex flex-col items-end gap-4 w-full sm:w-auto">
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="distance-filter-switch"
+                checked={isDistanceFilterEnabled}
+                onCheckedChange={setIsDistanceFilterEnabled}
               />
+              <Label htmlFor="distance-filter-switch">Filter by distance</Label>
+            </div>
+            {isDistanceFilterEnabled && (
+              <div className="w-full sm:w-auto sm:min-w-64 space-y-2">
+                <Label htmlFor="distance-slider" className="flex justify-between">
+                  <span>Distance</span>
+                  <span>{filterDistance} km</span>
+                </Label>
+                <Slider
+                  id="distance-slider"
+                  defaultValue={[50]}
+                  max={100}
+                  step={1}
+                  onValueChange={(value) => setFilterDistance(value[0])}
+                />
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -173,9 +189,9 @@ export default function BarbersPage() {
                   </Link>
                 )
               })}
-              {filteredBarbers.length === 0 && (
+              {filteredBarbers.length === 0 && !loading && (
                 <p className="text-muted-foreground col-span-full text-center py-12">
-                  No barbers found within {filterDistance}km. Try expanding your search radius.
+                  {isDistanceFilterEnabled ? `No barbers found within ${filterDistance}km. Try expanding your search radius or turning off the distance filter.` : 'No barbers found.'}
                 </p>
               )}
             </div>
