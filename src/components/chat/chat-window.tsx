@@ -1,4 +1,3 @@
-
 // src/components/chat/chat-window.tsx
 "use client";
 
@@ -10,14 +9,16 @@ import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
-import { Send } from "lucide-react";
+import { Send, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface ChatWindowProps {
   chat: Chat | null;
+  isMobile?: boolean;
+  onBack?: () => void;
 }
 
-export function ChatWindow({ chat }: ChatWindowProps) {
+export function ChatWindow({ chat, isMobile, onBack }: ChatWindowProps) {
   const { user } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
@@ -65,6 +66,11 @@ export function ChatWindow({ chat }: ChatWindowProps) {
   return (
     <div className="flex flex-col h-full">
       <header className="flex items-center gap-4 border-b p-4">
+        {isMobile && (
+          <Button variant="ghost" size="icon" onClick={onBack}>
+            <ArrowLeft className="h-6 w-6" />
+          </Button>
+        )}
         <Avatar className="h-10 w-10">
             <AvatarImage data-ai-hint="person portrait" src={otherParticipant?.photoURL} />
             <AvatarFallback>{otherParticipant?.displayName?.[0]}</AvatarFallback>

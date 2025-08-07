@@ -1,4 +1,3 @@
-
 // src/app/chat/page.tsx
 "use client";
 
@@ -52,6 +51,7 @@ function ChatPageContent() {
 
 export default function ChatPage() {
     return (
+      <div className="h-full">
         <Suspense fallback={
           <div className="flex h-full items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin" />
@@ -60,5 +60,6 @@ export default function ChatPage() {
         }>
             <ChatPageContent />
         </Suspense>
+      </div>
     )
 }
