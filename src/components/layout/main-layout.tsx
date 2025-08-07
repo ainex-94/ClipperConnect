@@ -62,8 +62,8 @@ export default function MainLayout({
       )
   }
   
-  // If user is logged in but not approved, show the relevant screen
-  if (user && user.accountStatus !== 'Approved') {
+  // If user is logged in but is not an admin and not approved, show the relevant screen
+  if (user && user.role !== 'admin' && user.accountStatus !== 'Approved') {
       return <AccessDeniedScreen status={user.accountStatus || 'Pending'} onLogout={logout} />;
   }
 

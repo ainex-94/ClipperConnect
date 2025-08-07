@@ -74,15 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         unsubscribeFirestore = onSnapshot(userRef, (docSnap) => {
           if (docSnap.exists()) {
             const userProfile = { id: docSnap.id, ...docSnap.data() } as UserProfile;
-            
-            // Centralized access control
-            if (userProfile.role !== 'admin' && userProfile.accountStatus !== 'Approved') {
-                 // Don't log them out immediately, let the MainLayout handle showing the status screen
-                 setUser(userProfile);
-            } else {
-                setUser(userProfile);
-            }
-
+             setUser(userProfile);
           } else {
             // This can happen briefly during registration
             setUser(null);
@@ -111,31 +103,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
   
-  const handleAuthSuccess = async (firebaseUser: FirebaseUser, role?: UserProfile['role']) => {
-      // If a role is passed (i.e. during registration), we can make an immediate decision
-      if (role === 'admin') {
-          router.push('/');
-          return;
-      }
-
-      const userProfile = await fetchUserProfile(firebaseUser);
-
-      // If we have a full user profile, we can check its status
-      if (userProfile && userProfile.role !== 'admin' && userProfile.accountStatus !== 'Approved') {
-          // Don't redirect to dashboard, MainLayout will show pending/rejected screen
-          toast({
-              title: "Account Status",
-              description: userProfile.accountStatus === 'Pending' 
-                  ? "Your account is pending approval." 
-                  : "Your account has been rejected.",
-              variant: userProfile.accountStatus === 'Rejected' ? 'destructive' : 'default'
-          });
-          // No redirect, let the layout handle it.
-      } else {
-          const redirectPath = sessionStorage.getItem('redirectPath') || '/';
-          sessionStorage.removeItem('redirectPath');
-          router.push(redirectPath);
-      }
+  const handleAuthSuccess = async (firebaseUser: FirebaseUser) => {
+      const redirectPath = sessionStorage.getItem('redirectPath') || '/';
+      sessionStorage.removeItem('redirectPath');
+      router.push(redirectPath);
   }
 
   const createFirestoreUser = async (firebaseUser: FirebaseUser, role: 'customer' | 'barber' | 'admin', displayName?: string) => {
@@ -177,7 +148,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
       
-      await handleAuthSuccess(firebaseUser, role);
+      await handleAuthSuccess(firebaseUser);
   }
 
   const loginWithGoogle = async (role: 'customer' | 'barber' = 'customer') => {
