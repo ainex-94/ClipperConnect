@@ -248,17 +248,17 @@ export default function SettingsPage() {
         updateData.address = formData.address;
         updateData.latitude = parseFloat(formData.latitude) || null;
         updateData.longitude = parseFloat(formData.longitude) || null;
-        updateData.availability = {};
+        
+        const availabilityToSave: any = {};
         daysOfWeek.forEach(day => {
           if (availability[day]?.enabled) {
-            updateData.availability[day] = {
+            availabilityToSave[day] = {
               start: availability[day].start,
               end: availability[day].end,
             };
-          } else {
-             updateData.availability[day] = null;
           }
         });
+        updateData.availability = availabilityToSave;
       }
       
       await updateDoc(userRef, updateData);
