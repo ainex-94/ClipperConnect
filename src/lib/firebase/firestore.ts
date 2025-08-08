@@ -65,7 +65,7 @@ export interface Appointment {
   barberPhotoURL?: string;
   service: string;
   dateTime: string;
-  status: 'Confirmed' | 'Pending' | 'InProgress' | 'Completed' | 'Cancelled';
+  status: 'Confirmed' | 'Pending' | 'Completed' | 'Cancelled';
   price?: number;
   paymentStatus?: 'Paid' | 'Unpaid';
   amountPaid?: number;

@@ -12,7 +12,6 @@ import { NewAppointmentDialog } from "@/components/new-appointment-dialog";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { StartChatButton } from "@/components/start-chat-button";
-import { StartEndJobDialog } from "@/components/start-end-job-dialog";
 import { EnterPaymentDialog } from "@/components/enter-payment-dialog";
 import { RateAppointmentDialog } from "@/components/rate-appointment-dialog";
 import { EditAppointmentDialog } from "@/components/edit-appointment-dialog";
@@ -76,8 +75,6 @@ export default function AppointmentsPage() {
     switch (status) {
       case "Confirmed":
         return "default";
-      case "InProgress":
-        return "secondary";
       case "Completed":
         return "outline";
       case "Cancelled":
@@ -142,21 +139,7 @@ export default function AppointmentsPage() {
                 {isBarber && (
                   <>
                     <DropdownMenuSeparator />
-                    {appointment.status === 'Confirmed' && (
-                      <StartEndJobDialog
-                        appointmentId={appointment.id}
-                        action="start"
-                        onSuccess={fetchAppointments}
-                      />
-                    )}
-                    {appointment.status === 'InProgress' && (
-                      <StartEndJobDialog
-                        appointmentId={appointment.id}
-                        action="end"
-                        onSuccess={fetchAppointments}
-                      />
-                    )}
-                    {appointment.status === 'Completed' && appointment.paymentStatus !== 'Paid' && (
+                    {appointment.status === 'Confirmed' && appointment.paymentStatus !== 'Paid' && (
                        <EnterPaymentDialog
                         appointment={appointment}
                         onSuccess={fetchAppointments}

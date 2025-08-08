@@ -278,56 +278,6 @@ export async function updateUserAccountStatus(values: z.infer<typeof updateUserA
     }
 }
 
-
-const updateAppointmentStatusSchema = z.object({
-    appointmentId: z.string().min(1),
-    status: z.enum(['InProgress', 'Completed']),
-});
-
-export async function updateAppointmentStatus(values: z.infer<typeof updateAppointmentStatusSchema>) {
-    const validatedFields = updateAppointmentStatusSchema.safeParse(values);
-
-    if (!validatedFields.success) {
-        return {
-            error: "Invalid fields: " + validatedFields.error.errors.map(e => e.message).join(', '),
-        };
-    }
-
-    try {
-        const appointmentRef = doc(db, "appointments", values.appointmentId);
-        const appointmentSnap = await getDoc(appointmentRef);
-        if (!appointmentSnap.exists()) return { error: "Appointment not found." };
-        
-        const appointment = appointmentSnap.data();
-
-        await updateDoc(appointmentRef, { status: values.status });
-
-        const customerId = appointment.customerId;
-        const barberId = appointment.barberId;
-        const customerName = appointment.customerName;
-        const barberName = appointment.barberName;
-        const statusText = values.status === 'InProgress' ? 'started' : 'completed';
-
-        await createNotification(customerId, {
-            title: `Appointment ${statusText}`,
-            description: `Your appointment with ${barberName} has been ${statusText}.`,
-            href: `/appointments`,
-        });
-        await createNotification(barberId, {
-            title: `Appointment ${statusText}`,
-            description: `Your appointment with ${customerName} has been ${statusText}.`,
-            href: `/appointments`,
-        });
-        
-        revalidatePath('/appointments');
-        return { success: `Appointment status updated to ${values.status}!` };
-
-    } catch (error) {
-        console.error("Firestore Error:", error);
-        return { error: "Failed to update appointment status." };
-    }
-}
-
 const recordPaymentSchema = z.object({
     appointmentId: z.string().min(1),
     amountPaid: z.coerce.number().min(0, "Amount paid cannot be negative."),
