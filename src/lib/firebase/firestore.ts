@@ -210,19 +210,24 @@ export async function getRecentAppointments(barberId?: string): Promise<Appointm
         q = query(
             collection(db, "appointments"), 
             where('barberId', '==', barberId),
-            orderBy("dateTime", "desc"), 
-            limit(5)
         );
     } else {
         q = query(
             collection(db, "appointments"), 
-            orderBy("dateTime", "desc"), 
+            orderBy("dateTime", "desc"),
             limit(5)
         );
     }
     
     const querySnapshot = await getDocs(q);
-    const appointments = querySnapshot.docs.map(doc => safeJsonParse({ id: doc.id, ...doc.data() })) as Appointment[];
+    let appointments = querySnapshot.docs.map(doc => safeJsonParse({ id: doc.id, ...doc.data() })) as Appointment[];
+    
+    if (barberId) {
+        appointments = appointments
+            .sort((a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime())
+            .slice(0, 5);
+    }
+
     return appointments;
 }
 
@@ -268,7 +273,6 @@ export async function getOrCreateChat(userId1: string, userId2: string) {
             createdAt: serverTimestamp(),
         });
         
-        // Notify the user who was invited to the chat
         await createNotificationInFirestore(userId2, {
             title: `New Chat with ${user1Data.displayName}`,
             description: "You can now send messages to each other.",
