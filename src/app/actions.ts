@@ -510,3 +510,80 @@ export async function getWalletTransactions(userId: string): Promise<{ success: 
     return { success: false, error: "Could not fetch transaction history." };
   }
 }
+
+// Settings Page Actions
+
+const userProfileSchema = z.object({
+  userId: z.string().min(1),
+  displayName: z.string().min(2, "Display name must be at least 2 characters."),
+  email: z.string().email(),
+  bio: z.string().optional(),
+});
+
+export async function updateUserProfile(values: z.infer<typeof userProfileSchema>) {
+    const validatedFields = userProfileSchema.safeParse(values);
+    if (!validatedFields.success) {
+        return { error: "Invalid fields: " + validatedFields.error.errors.map(e => e.message).join(', ') };
+    }
+    const { userId, ...profileData } = validatedFields.data;
+    try {
+        const userRef = doc(db, "users", userId);
+        await updateDoc(userRef, {
+            displayName: profileData.displayName.trim(),
+            email: profileData.email,
+            bio: profileData.bio || '',
+        });
+        revalidatePath('/settings');
+        return { success: "Profile updated successfully!" };
+    } catch (error: any) {
+        return { error: error.message || "Failed to update profile." };
+    }
+}
+
+const userLocationSchema = z.object({
+    userId: z.string().min(1),
+    address: z.string(),
+    latitude: z.number().nullable(),
+    longitude: z.number().nullable(),
+});
+
+export async function updateUserLocation(values: z.infer<typeof userLocationSchema>) {
+    const validatedFields = userLocationSchema.safeParse(values);
+    if (!validatedFields.success) {
+        return { error: "Invalid fields: " + validatedFields.error.errors.map(e => e.message).join(', ') };
+    }
+    const { userId, ...locationData } = validatedFields.data;
+    try {
+        const userRef = doc(db, "users", userId);
+        await updateDoc(userRef, locationData);
+        revalidatePath('/settings');
+        return { success: "Location updated successfully!" };
+    } catch (error: any) {
+        return { error: error.message || "Failed to update location." };
+    }
+}
+
+
+const userAvailabilitySchema = z.object({
+    userId: z.string().min(1),
+    availability: z.record(z.object({
+        start: z.string(),
+        end: z.string(),
+    })),
+});
+
+export async function updateUserAvailability(values: z.infer<typeof userAvailabilitySchema>) {
+    const validatedFields = userAvailabilitySchema.safeParse(values);
+    if (!validatedFields.success) {
+        return { error: "Invalid fields: " + validatedFields.error.errors.map(e => e.message).join(', ') };
+    }
+    const { userId, availability } = validatedFields.data;
+    try {
+        const userRef = doc(db, "users", userId);
+        await updateDoc(userRef, { availability });
+        revalidatePath('/settings');
+        return { success: "Availability updated successfully!" };
+    } catch (error: any) {
+        return { error: error.message || "Failed to update availability." };
+    }
+}
