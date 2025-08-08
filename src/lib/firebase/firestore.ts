@@ -204,6 +204,29 @@ export async function getAllAppointments(barberId?: string): Promise<Appointment
     return appointments;
 }
 
+export async function getRecentAppointments(barberId?: string): Promise<Appointment[]> {
+    let q;
+    if (barberId) {
+        q = query(
+            collection(db, "appointments"), 
+            where('barberId', '==', barberId),
+            orderBy("dateTime", "desc"), 
+            limit(5)
+        );
+    } else {
+        q = query(
+            collection(db, "appointments"), 
+            orderBy("dateTime", "desc"), 
+            limit(5)
+        );
+    }
+    
+    const querySnapshot = await getDocs(q);
+    const appointments = querySnapshot.docs.map(doc => safeJsonParse({ id: doc.id, ...doc.data() })) as Appointment[];
+    return appointments;
+}
+
+
 export async function updateAppointmentPayment(appointmentId: string, paymentStatus: 'Paid' | 'Unpaid') {
   try {
     const appointmentRef = doc(db, "appointments", appointmentId);

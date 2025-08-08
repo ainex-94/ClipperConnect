@@ -1,154 +1,174 @@
-
 // src/app/page.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
-import { RescheduleTool } from "@/components/reschedule-tool";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import { useAuth } from "@/hooks/use-auth";
-import { getAppointmentsForUser, Appointment } from "@/lib/firebase/firestore";
+import { useEffect, useState } from 'react';
+import { useAuth } from '@/hooks/use-auth';
+import { getAppointmentsForUser, getAllAppointments, getCustomers, getRecentAppointments, Appointment } from "@/lib/firebase/firestore";
+import { Loader2, DollarSign, Users, Calendar, Star } from 'lucide-react';
+import { RescheduleTool } from '@/components/reschedule-tool';
+import { StatsCard } from '@/components/stats-card';
+import { OverviewChart } from '@/components/overview-chart';
+import { RecentSales } from '@/components/recent-sales';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { format } from 'date-fns';
-import { Loader2, Coins } from 'lucide-react';
 import { StartChatButton } from '@/components/start-chat-button';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+
+interface DashboardStats {
+  totalRevenue: number;
+  totalCustomers: number;
+  totalAppointments: number;
+  averageRating: number;
+}
 
 export default function DashboardPage() {
-  const { user, loading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
+  const [stats, setStats] = useState<DashboardStats | null>(null);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [upcomingAppointments, setUpcomingAppointments] = useState<Appointment[]>([]);
-  const [dataLoading, setDataLoading] = useState(true);
-
-  const coins = user?.coins || 0;
-  const coinValuePKR = (coins / 1000) * 5;
+  const [recentAppointments, setRecentAppointments] = useState<Appointment[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (user) {
-      const fetchAppointments = async () => {
-        setDataLoading(true);
+    async function fetchDashboardData() {
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+      setLoading(true);
+
+      if (user.role === 'admin' || user.role === 'barber') {
+        const [allAppointments, allCustomers, recent] = await Promise.all([
+          getAllAppointments(user.role === 'barber' ? user.uid : undefined),
+          user.role === 'admin' ? getCustomers() : Promise.resolve([]),
+          getRecentAppointments(user.role === 'barber' ? user.uid : undefined)
+        ]);
+
+        const totalRevenue = allAppointments
+          .filter(a => a.paymentStatus === 'Paid' && a.amountPaid)
+          .reduce((sum, a) => sum + a.amountPaid!, 0);
+
+        const totalAppointments = allAppointments.length;
+        const totalCustomers = allCustomers.length;
+        const totalRatings = allAppointments.reduce((sum, a) => sum + (a.barberRating ? 1 : 0), 0);
+        const sumOfRatings = allAppointments.reduce((sum, a) => sum + (a.barberRating || 0), 0);
+        const averageRating = totalRatings > 0 ? sumOfRatings / totalRatings : 0;
+
+        setStats({ totalRevenue, totalCustomers, totalAppointments, averageRating });
+        setAppointments(allAppointments);
+        setRecentAppointments(recent);
+
+      } else { // Customer
         const userAppointments = await getAppointmentsForUser(user.uid);
         setAppointments(userAppointments);
-
-        const today = new Date();
-        const upcoming = userAppointments
-          .filter(app => {
-            if (!app.dateTime) return false;
-            const appDate = new Date(app.dateTime);
-            // Show appointments for today
-            return (
-              appDate.getDate() === today.getDate() &&
-              appDate.getMonth() === today.getMonth() &&
-              appDate.getFullYear() === today.getFullYear() &&
-              app.status === 'Confirmed'
-            );
-          })
-          .sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
-        
-        setUpcomingAppointments(upcoming);
-        setDataLoading(false);
-      };
-
-      fetchAppointments();
-    } else if (!loading) {
-      // If user is not logged in and auth check is complete
-      setDataLoading(false);
+      }
+      setLoading(false);
     }
-  }, [user, loading]);
+    
+    if (!authLoading) {
+      fetchDashboardData();
+    }
+  }, [user, authLoading]);
 
-  if (loading) {
+  if (authLoading || loading) {
     return <div className="flex items-center justify-center h-full"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   }
-
-  return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 fade-in-animation">
-      
-      {(!user || user.role !== 'customer') && (
-        <div className="lg:col-span-2">
+  
+  if (!user) {
+     return (
+        <div className="lg:col-span-3">
           <Card>
             <CardHeader>
-              <CardTitle>Intelligent Rescheduling</CardTitle>
+              <CardTitle>Welcome to ClipperConnect</CardTitle>
               <CardDescription>
-                Need to move an appointment? Our AI will find the best alternative slots based on everyone's availability and preferences.
+                The all-in-one platform for barber services. Please log in or register to get started.
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {user ? (
-                <RescheduleTool />
-              ) : (
-                <p className="text-muted-foreground">Please log in as a barber or admin to use the rescheduling tool.</p>
-              )}
+               <RescheduleTool />
             </CardContent>
           </Card>
         </div>
-      )}
+      )
+  }
 
-      <div className={!user || user.role === 'customer' ? "lg:col-span-3" : "lg:col-span-1"}>
-        {user && (
-          <Card className="mb-6">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Your Coins</CardTitle>
-              <Coins className="h-4 w-4 text-yellow-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{coins.toLocaleString()}</div>
-              <p className="text-xs text-muted-foreground">≈ PKR {coinValuePKR.toFixed(2)}</p>
-            </CardContent>
-          </Card>
-        )}
-        <Card>
-          <CardHeader>
-            <CardTitle>Upcoming Appointments</CardTitle>
-            <CardDescription>Here are your confirmed appointments for today.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {dataLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin" />
-              </div>
-            ) : user && upcomingAppointments.length > 0 ? (
-                <div className="space-y-4">
-                  {upcomingAppointments.map((appointment, index) => {
-                    const otherPersonName = user.role === 'barber' ? appointment.customerName : appointment.barberName;
-                    const otherPersonId = user.role === 'barber' ? appointment.customerId : appointment.barberId;
-                    const otherPersonPhoto = user.role === 'barber' ? appointment.customerPhotoURL : appointment.barberPhotoURL;
-                    
-                    return (
-                    <div key={appointment.id}>
-                      <div className="flex items-center gap-4">
-                        <Avatar className="h-10 w-10">
-                          <AvatarImage data-ai-hint="person portrait" src={otherPersonPhoto} alt={otherPersonName} />
-                          <AvatarFallback>{otherPersonName?.charAt(0)}</AvatarFallback>
+  // Admin and Barber Dashboard
+  if (user.role === 'admin' || user.role === 'barber') {
+    return (
+        <div className="space-y-6">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                <StatsCard title="Total Revenue" value={`PKR ${stats?.totalRevenue.toLocaleString()}`} icon={DollarSign} description="All-time earnings" />
+                {user.role === 'admin' && <StatsCard title="Total Customers" value={`+${stats?.totalCustomers.toLocaleString()}`} icon={Users} description="All registered customers" />}
+                <StatsCard title="Total Appointments" value={`+${stats?.totalAppointments.toLocaleString()}`} icon={Calendar} description="All-time appointments" />
+                <StatsCard title="Average Rating" value={stats?.averageRating.toFixed(1) || 'N/A'} icon={Star} description="From all-time reviews" />
+            </div>
+             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
+                <Card className="lg:col-span-4">
+                    <CardHeader>
+                        <CardTitle>Overview</CardTitle>
+                    </CardHeader>
+                    <CardContent className="pl-2">
+                        <OverviewChart data={appointments} />
+                    </CardContent>
+                </Card>
+                 <Card className="lg:col-span-3">
+                    <CardHeader>
+                        <CardTitle>Recent Sales</CardTitle>
+                        <CardDescription>You made {recentAppointments.filter(a => a.paymentStatus === 'Paid').length} sales recently.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <RecentSales appointments={recentAppointments} />
+                    </CardContent>
+                </Card>
+             </div>
+        </div>
+    )
+  }
+
+  // Customer Dashboard
+  const upcomingAppointment = appointments
+    .filter(a => new Date(a.dateTime) > new Date() && a.status === 'Confirmed')
+    .sort((a,b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime())[0];
+
+  const totalSpent = appointments
+    .filter(a => a.paymentStatus === 'Paid')
+    .reduce((sum, a) => sum + (a.amountPaid || 0), 0);
+
+  return (
+    <div className="space-y-6">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+           <StatsCard title="Total Appointments" value={appointments.length} icon={Calendar} description="All your past and future bookings" />
+           <StatsCard title="Total Spent" value={`PKR ${totalSpent.toLocaleString()}`} icon={DollarSign} description="Thank you for your business!" />
+           <StatsCard title="Your Coins" value={(user.coins || 0).toLocaleString()} icon={Users} description={`≈ PKR ${((user.coins || 0) / 1000 * 5).toFixed(2)}`} />
+        </div>
+        {upcomingAppointment ? (
+            <Card>
+                <CardHeader>
+                    <CardTitle>Your Next Appointment</CardTitle>
+                    <CardDescription>Don't be late! Here are the details for your next booking.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="flex items-center gap-4 p-4 rounded-lg bg-muted/50">
+                        <Avatar className="h-16 w-16">
+                          <AvatarImage data-ai-hint="person portrait" src={upcomingAppointment.barberPhotoURL} alt={upcomingAppointment.barberName} />
+                          <AvatarFallback>{upcomingAppointment.barberName?.charAt(0)}</AvatarFallback>
                         </Avatar>
-                        <div className="flex-1">
-                          <div className="flex items-center justify-between">
-                              <div>
-                                  <p className="font-medium">{otherPersonName}</p>
-                                  <p className="text-sm text-muted-foreground">{appointment.service}</p>
-                              </div>
-                              <div className="text-right">
-                                  <p className="font-semibold">{format(new Date(appointment.dateTime), "p")}</p>
-                              </div>
-                          </div>
-                          <StartChatButton 
-                            otherUserId={otherPersonId}
-                            variant="outline"
-                            size="sm"
-                            className="mt-2 w-full sm:w-auto"
-                          />
+                        <div className="flex-1 grid gap-1">
+                            <p className="font-semibold text-lg">{upcomingAppointment.barberName}</p>
+                            <p className="text-muted-foreground">{upcomingAppointment.service}</p>
+                            <p className="font-bold text-primary text-xl">{format(new Date(upcomingAppointment.dateTime), "PPP p")}</p>
                         </div>
-                      </div>
-                      {index < upcomingAppointments.length - 1 && <Separator className="mt-4" />}
+                        <StartChatButton otherUserId={upcomingAppointment.barberId} />
                     </div>
-                  )})}
-              </div>
-            ) : (
-              <p className="text-muted-foreground text-center py-8">
-                {user ? "No upcoming appointments today." : "Log in to see your appointments."}
-              </p>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+                </CardContent>
+            </Card>
+        ) : (
+            <Card>
+                <CardHeader>
+                    <CardTitle>No Upcoming Appointments</CardTitle>
+                    <CardDescription>You have no scheduled appointments. Time for a fresh look?</CardDescription>
+                </CardHeader>
+            </Card>
+        )}
     </div>
   );
 }
