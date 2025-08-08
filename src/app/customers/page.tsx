@@ -14,6 +14,7 @@ import { StartChatButton } from "@/components/start-chat-button";
 import { DataTable } from "@/components/ui/data-table";
 import { type ColumnDef } from "@tanstack/react-table";
 import Link from "next/link";
+import { cn } from "@/lib/utils";
 
 
 export default function CustomersPage() {
@@ -75,13 +76,17 @@ export default function CustomersPage() {
      {
       accessorKey: 'rating',
       header: 'Rating',
-      cell: ({ row }) => (
-        <div className="flex items-center gap-1">
-          <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
-          <span className="font-semibold">{row.original.rating?.toFixed(1) || 'New'}</span>
-          <span className="text-xs text-muted-foreground">({row.original.totalRatings || 0})</span>
-        </div>
-      )
+      cell: ({ row }) => {
+        const ratingValue = row.original.rating || 0;
+        return (
+            <div className="flex items-center gap-1">
+                {[...Array(5)].map((_, i) => (
+                    <Star key={i} className={cn("w-4 h-4", i < ratingValue ? "text-yellow-400 fill-yellow-400" : "text-gray-300")} />
+                ))}
+                <span className="text-xs text-muted-foreground ml-1">({row.original.totalRatings || 0})</span>
+            </div>
+        )
+      }
     },
     {
       accessorKey: 'createdAt',
