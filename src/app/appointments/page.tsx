@@ -1,4 +1,3 @@
-
 // src/app/appointments/page.tsx
 'use client';
 
@@ -6,8 +5,8 @@ import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { getAppointmentsForUser, Appointment } from "@/lib/firebase/firestore";
-import { MoreHorizontal, Loader2, Star, Pencil, Play, Square, DollarSign, FileText, Wallet } from "lucide-react";
+import { getAppointmentsForUser, Appointment, getAllAppointments } from "@/lib/firebase/firestore";
+import { MoreHorizontal, Loader2, Wallet } from "lucide-react";
 import { format } from 'date-fns';
 import { NewAppointmentDialog } from "@/components/new-appointment-dialog";
 import { Button } from "@/components/ui/button";
@@ -34,7 +33,12 @@ export default function AppointmentsPage() {
     if (user) {
       setLoading(true);
       try {
-        const userAppointments = await getAppointmentsForUser(user.uid);
+        let userAppointments;
+        if (user.role === 'admin') {
+            userAppointments = await getAllAppointments();
+        } else {
+            userAppointments = await getAppointmentsForUser(user.uid);
+        }
         setAppointments(userAppointments);
       } catch (error) {
         console.error("Failed to fetch appointments ->", error);
