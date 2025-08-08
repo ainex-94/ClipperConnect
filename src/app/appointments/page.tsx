@@ -2,7 +2,7 @@
 // src/app/appointments/page.tsx
 'use client';
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,20 +30,30 @@ export default function AppointmentsPage() {
   const { toast } = useToast();
   const { triggerNotification } = useNotification();
   
-  const fetchAppointments = async () => {
+  const fetchAppointments = useCallback(async () => {
     if (user) {
       setLoading(true);
-      const userAppointments = await getAppointmentsForUser(user.uid);
-      setAppointments(userAppointments);
-      setLoading(false);
-    } else if (!authLoading) {
-      setLoading(false);
+      try {
+        const userAppointments = await getAppointmentsForUser(user.uid);
+        setAppointments(userAppointments);
+      } catch (error) {
+        console.error("Failed to fetch appointments:", error);
+        toast({ variant: 'destructive', title: 'Error', description: 'Could not fetch appointments.' });
+      } finally {
+        setLoading(false);
+      }
     }
-  };
+  }, [user, toast]);
 
   useEffect(() => {
-    fetchAppointments();
-  }, [user, authLoading]);
+    if (!authLoading) {
+      if (user) {
+        fetchAppointments();
+      } else {
+        setLoading(false); // Not logged in, stop loading
+      }
+    }
+  }, [user, authLoading, fetchAppointments]);
 
   const handlePayFromWallet = async (appointmentId: string) => {
     setLoading(true);
@@ -54,8 +64,8 @@ export default function AppointmentsPage() {
       fetchAppointments();
     } else {
       toast({ variant: 'destructive', title: 'Payment Failed', description: result.error });
-      setLoading(false);
     }
+    setLoading(false); // Ensure loading is set to false in all cases
   };
 
   const getStatusVariant = (status: Appointment['status']) => {
@@ -201,7 +211,7 @@ export default function AppointmentsPage() {
         {user && <NewAppointmentDialog onSuccess={fetchAppointments} />}
       </CardHeader>
       <CardContent>
-        {loading ? (
+        {loading || authLoading ? (
            <div className="flex justify-center items-center h-48">
             <Loader2 className="h-8 w-8 animate-spin" />
           </div>

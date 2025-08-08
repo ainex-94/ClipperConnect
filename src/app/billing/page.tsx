@@ -2,7 +2,7 @@
 // src/app/billing/page.tsx
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -14,33 +14,43 @@ import { type Appointment, getAllAppointments, getAppointmentsForUser } from '@/
 import { InvoiceDialog } from '@/components/invoice-dialog';
 import { DataTable } from '@/components/ui/data-table';
 import { type ColumnDef } from "@tanstack/react-table";
+import { useToast } from '@/hooks/use-toast';
 
 export default function BillingPage() {
   const { user, loading: authLoading } = useAuth();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
-  const fetchAppointments = async () => {
+  const fetchAppointments = useCallback(async () => {
     if (user) {
       setLoading(true);
-      let userAppointments: Appointment[] = [];
-      if (user.role === 'admin' || user.role === 'barber') {
-        userAppointments = await getAllAppointments(user.role === 'barber' ? user.uid : undefined);
-      } else if (user.role === 'customer') {
-        userAppointments = await getAppointmentsForUser(user.uid);
+      try {
+        let userAppointments: Appointment[] = [];
+        if (user.role === 'admin' || user.role === 'barber') {
+          userAppointments = await getAllAppointments(user.role === 'barber' ? user.uid : undefined);
+        } else if (user.role === 'customer') {
+          userAppointments = await getAppointmentsForUser(user.uid);
+        }
+        setAppointments(userAppointments);
+      } catch (error) {
+        console.error("Failed to fetch appointments:", error);
+        toast({ variant: 'destructive', title: 'Error', description: 'Could not fetch transaction history.' });
+      } finally {
+        setLoading(false);
       }
-      setAppointments(userAppointments);
-      setLoading(false);
-    } else {
-      setLoading(false);
     }
-  };
+  }, [user, toast]);
 
   useEffect(() => {
     if (!authLoading) {
-      fetchAppointments();
+      if (user) {
+        fetchAppointments();
+      } else {
+        setLoading(false); // Not logged in, stop loading
+      }
     }
-  }, [user, authLoading]);
+  }, [user, authLoading, fetchAppointments]);
 
 
   const getStatusVariant = (status?: 'Paid' | 'Unpaid') => {

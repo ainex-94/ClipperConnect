@@ -74,7 +74,7 @@ export default function AppHeader() {
               <DropdownMenuContent align="end">
                 <DropdownMenuLabel>My Account</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem>Profile</DropdownMenuItem>
+                <Link href="/settings"><DropdownMenuItem>Profile</DropdownMenuItem></Link>
                 <Link href="/billing"><DropdownMenuItem>Billing</DropdownMenuItem></Link>
                 <Link href="/settings"><DropdownMenuItem>Settings</DropdownMenuItem></Link>
                 <DropdownMenuSeparator />
