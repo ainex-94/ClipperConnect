@@ -18,6 +18,7 @@ import { NewAppointmentDialog } from "@/components/new-appointment-dialog";
 import { Star, MessageSquare, Calendar, Loader2 } from "lucide-react";
 import Image from "next/image";
 import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
 export default function BarberProfilePage() {
     const { user } = useAuth();
@@ -68,6 +69,7 @@ export default function BarberProfilePage() {
     }
     
     const images = [barber.photoURL, ...(barber.shopImageUrls || [])];
+    const ratingValue = barber.rating || 0;
 
     return (
         <div className="container mx-auto py-8">
@@ -83,9 +85,12 @@ export default function BarberProfilePage() {
                             <CardTitle>{barber.displayName}</CardTitle>
                             <CardDescription>{barber.specialty || 'All-Rounder'}</CardDescription>
                              <div className="flex items-center justify-center gap-2 pt-2">
-                                <Star className="w-5 h-5 text-yellow-500 fill-yellow-500" />
-                                <span className="text-xl font-bold">{barber.rating?.toFixed(1) || 'New'}</span>
-                                <span className="text-sm text-muted-foreground">({barber.totalRatings || 0} ratings)</span>
+                                <div className="flex items-center gap-1">
+                                    {[...Array(5)].map((_, i) => (
+                                        <Star key={i} className={cn("w-5 h-5", i < ratingValue ? "text-yellow-400 fill-yellow-400" : "text-gray-300")} />
+                                    ))}
+                                </div>
+                                <span className="text-sm text-muted-foreground ml-2">({barber.totalRatings || 0} ratings)</span>
                             </div>
                         </CardHeader>
                         <CardContent>
@@ -175,4 +180,3 @@ export default function BarberProfilePage() {
         </div>
     );
 }
-

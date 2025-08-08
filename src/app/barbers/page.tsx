@@ -18,6 +18,7 @@ import Link from "next/link";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { cn } from "@/lib/utils";
 
 // Haversine formula to calculate distance between two lat/lng points
 function getDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
@@ -131,6 +132,7 @@ export default function BarbersPage() {
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 mt-4">
               {filteredBarbers.map((barber) => {
                 const images = [barber.photoURL, ...(barber.shopImageUrls || [])];
+                const ratingValue = barber.rating || 0;
                 return (
                   <Link key={barber.id} href={`/barbers/${barber.id}`} className="flex flex-col">
                     <Card className="flex flex-col h-full hover:shadow-xl transition-shadow duration-300">
@@ -163,9 +165,11 @@ export default function BarbersPage() {
                         <div className="text-center mb-4">
                           <CardTitle>{barber.displayName}</CardTitle>
                           <CardDescription>{barber.specialty || 'All-rounder'}</CardDescription>
-                          <div className="flex items-center justify-center gap-1 text-yellow-500 mt-1">
-                            <Star className="w-4 h-4 fill-current" />
-                            <span>{barber.rating?.toFixed(1) || 'New'}</span>
+                          <div className="flex items-center justify-center gap-1 mt-1">
+                             {[...Array(5)].map((_, i) => (
+                                <Star key={i} className={cn("w-4 h-4", i < ratingValue ? "text-yellow-400 fill-yellow-400" : "text-gray-300")} />
+                            ))}
+                            <span className="text-xs text-muted-foreground ml-1">({barber.totalRatings || 0})</span>
                           </div>
                         </div>
                         <CardContent className="flex-grow p-0">

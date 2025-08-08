@@ -1,3 +1,4 @@
+
 // src/app/customers/[customerId]/page.tsx
 'use client';
 
@@ -67,11 +68,11 @@ export default function CustomerProfilePage() {
     
     const totalAppointments = appointments.length;
     const totalSpent = appointments.reduce((acc, app) => acc + (app.amountPaid || 0), 0);
+    const ratingValue = customer.rating || 0;
 
     const getStatusVariant = (status: Appointment['status']) => {
         switch (status) {
           case "Confirmed": return "default";
-          case "InProgress": return "secondary";
           case "Completed": return "outline";
           case "Cancelled": return "destructive";
           case "Pending": return "secondary"
@@ -118,9 +119,12 @@ export default function CustomerProfilePage() {
                             </Avatar>
                             <CardTitle>{customer.displayName}</CardTitle>
                              <div className="flex items-center justify-center gap-2 pt-2">
-                                <Star className="w-5 h-5 text-yellow-500 fill-yellow-500" />
-                                <span className="text-xl font-bold">{customer.rating?.toFixed(1) || 'New'}</span>
-                                <span className="text-sm text-muted-foreground">({customer.totalRatings || 0} ratings)</span>
+                                <div className="flex items-center gap-1">
+                                    {[...Array(5)].map((_, i) => (
+                                        <Star key={i} className={cn("w-5 h-5", i < ratingValue ? "text-yellow-400 fill-yellow-400" : "text-gray-300")} />
+                                    ))}
+                                </div>
+                                <span className="text-sm text-muted-foreground ml-2">({customer.totalRatings || 0} ratings)</span>
                             </div>
                         </CardHeader>
                         <CardContent className="space-y-4">
