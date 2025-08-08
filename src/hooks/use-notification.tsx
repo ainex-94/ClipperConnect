@@ -15,7 +15,7 @@ import { useAuth } from "./use-auth";
 import { collection, onSnapshot, query, orderBy, limit } from "firebase/firestore";
 import { db } from "@/lib/firebase/firebase";
 import { type Notification } from "@/lib/firebase/firestore";
-import { markAllNotificationsAsRead, markNotificationAsRead } from "@/app/actions";
+import { markAllNotificationsAsRead as markAllAsReadAction, markNotificationAsRead as markAsReadAction } from "@/app/actions";
 
 interface NotificationContextType {
   notifications: Notification[];
@@ -47,6 +47,17 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
           ...doc.data(),
           timestamp: doc.data().timestamp?.toDate().toISOString() || new Date().toISOString()
         } as Notification));
+        
+        // Check for new, unread notifications to play sound
+        if (notifications.length > 0) {
+            const newUnread = fetchedNotifications.filter(n => 
+                !n.read && !notifications.find(oldN => oldN.id === n.id)
+            );
+            if (newUnread.length > 0) {
+                triggerNotificationSound();
+            }
+        }
+        
         setNotifications(fetchedNotifications);
         setLoadingNotifications(false);
       }, (error) => {
@@ -81,13 +92,13 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     setNotifications(prev => 
         prev.map(n => n.id === notificationId ? { ...n, read: true } : n)
     );
-    await markNotificationAsRead({ userId: user.uid, notificationId });
+    await markAsReadAction({ userId: user.uid, notificationId });
   }, [user]);
 
   const markAllAsRead = useCallback(async () => {
     if (!user || unreadCount === 0) return;
     setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-    await markAllNotificationsAsRead({ userId: user.uid });
+    await markAllAsReadAction({ userId: user.uid });
   }, [user, unreadCount]);
 
   const value = {

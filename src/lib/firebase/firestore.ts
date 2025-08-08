@@ -256,8 +256,8 @@ export async function getOrCreateChat(userId1: string, userId2: string) {
             throw new Error("One or both users not found");
         }
         
-        const user1Data = user1Doc.data();
-        const user2Data = user2Doc.data();
+        const user1Data = user1Doc.data() as UserProfile;
+        const user2Data = user2Doc.data() as UserProfile;
 
         await setDoc(chatRef, {
             participantIds: sortedIds,
@@ -267,6 +267,14 @@ export async function getOrCreateChat(userId1: string, userId2: string) {
             ],
             createdAt: serverTimestamp(),
         });
+        
+        // Notify the user who was invited to the chat
+        await createNotificationInFirestore(userId2, {
+            title: `New Chat with ${user1Data.displayName}`,
+            description: "You can now send messages to each other.",
+            href: `/chat?chatId=${chatId}`
+        });
+
     }
 
     return chatId;
@@ -276,17 +284,26 @@ export async function getOrCreateChat(userId1: string, userId2: string) {
 export async function getChats(userId: string): Promise<Chat[]> {
     const q = query(collection(db, "chats"), where('participantIds', 'array-contains', userId));
     const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => safeJsonParse({ id: doc.id, ...doc.data() }));
+    const chats = querySnapshot.docs.map(doc => safeJsonParse({ id: doc.id, ...doc.data() }));
+    // Sort by last message timestamp, descending
+    chats.sort((a,b) => {
+        const timeA = a.lastMessage?.timestamp ? new Date(a.lastMessage.timestamp).getTime() : 0;
+        const timeB = b.lastMessage?.timestamp ? new Date(b.lastMessage.timestamp).getTime() : 0;
+        return timeB - timeA;
+    });
+    return chats;
 }
 
 
 export async function sendMessage(chatId: string, senderId: string, receiverId: string, text: string) {
     const messagesCol = collection(db, 'chats', chatId, 'messages');
+    const timestamp = serverTimestamp();
+    
     await addDoc(messagesCol, {
         senderId,
         receiverId,
         text,
-        timestamp: serverTimestamp(),
+        timestamp,
     });
 
     // Also update the last message on the chat document
@@ -294,9 +311,20 @@ export async function sendMessage(chatId: string, senderId: string, receiverId: 
     await updateDoc(chatRef, {
         lastMessage: {
             text,
-            timestamp: serverTimestamp(),
+            timestamp,
         }
     });
+
+    // Send notification to the receiver
+    const senderDoc = await getDoc(doc(db, 'users', senderId));
+    if (senderDoc.exists()) {
+        const senderName = senderDoc.data().displayName;
+        await createNotificationInFirestore(receiverId, {
+            title: `New message from ${senderName}`,
+            description: text,
+            href: `/chat?chatId=${chatId}`
+        });
+    }
 }
 
 export async function updateAverageRating(userId: string) {

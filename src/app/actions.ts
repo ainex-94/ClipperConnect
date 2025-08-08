@@ -697,6 +697,7 @@ export async function createNotification(userId: string, data: Omit<z.infer<type
         return;
     }
     await createNotificationInFirestore(userId, validatedData.data);
+    revalidatePath('/chat');
 }
 
 const markNotificationAsReadSchema = z.object({
@@ -708,6 +709,7 @@ export async function markNotificationAsRead(values: z.infer<typeof markNotifica
     try {
         const notificationRef = doc(db, "users", values.userId, "notifications", values.notificationId);
         await updateDoc(notificationRef, { read: true });
+        revalidatePath('/chat');
         return { success: true };
     } catch (error) {
         console.error("Error marking notification as read:", error);
@@ -730,6 +732,7 @@ export async function markAllNotificationsAsRead(values: z.infer<typeof markAllN
             batch.update(doc.ref, { read: true });
         });
         await batch.commit();
+        revalidatePath('/chat');
         return { success: true };
     } catch (error) {
         console.error("Error marking all notifications as read:", error);
