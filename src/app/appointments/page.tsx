@@ -37,7 +37,7 @@ export default function AppointmentsPage() {
         const userAppointments = await getAppointmentsForUser(user.uid);
         setAppointments(userAppointments);
       } catch (error) {
-        console.error("Failed to fetch appointments:", error);
+        console.error("Failed to fetch appointments ->", error);
         toast({ variant: 'destructive', title: 'Error', description: 'Could not fetch appointments.' });
       } finally {
         setLoading(false);
