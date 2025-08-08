@@ -21,12 +21,14 @@ import { DataTable } from "@/components/ui/data-table";
 import { type ColumnDef } from "@tanstack/react-table";
 import { payFromWallet } from "../actions";
 import { useToast } from "@/hooks/use-toast";
+import { useNotification } from "@/hooks/use-notification";
 
 export default function AppointmentsPage() {
   const { user, loading: authLoading } = useAuth();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const { triggerNotification } = useNotification();
   
   const fetchAppointments = async () => {
     if (user) {
@@ -48,6 +50,7 @@ export default function AppointmentsPage() {
     const result = await payFromWallet({ appointmentId });
     if (result.success) {
       toast({ title: 'Success', description: result.success });
+      triggerNotification();
       fetchAppointments();
     } else {
       toast({ variant: 'destructive', title: 'Payment Failed', description: result.error });

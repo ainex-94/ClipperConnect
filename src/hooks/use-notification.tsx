@@ -8,6 +8,7 @@ import {
   useContext,
   ReactNode,
   useCallback,
+  useMemo,
 } from "react";
 
 interface NotificationContextType {
@@ -21,9 +22,25 @@ const NotificationContext = createContext<NotificationContextType | undefined>(u
 export function NotificationProvider({ children }: { children: ReactNode }) {
   const [hasNotification, setHasNotification] = useState(false);
 
+  // Memoize the Audio object so it's not recreated on every render
+  const notificationSound = useMemo(() => {
+    // Check if window is defined to prevent SSR errors
+    if (typeof window !== "undefined") {
+      const audio = new Audio("https://actions.google.com/sounds/v1/events/notification_simple.ogg");
+      audio.volume = 0.3; // Set a reasonable volume
+      return audio;
+    }
+    return null;
+  }, []);
+
+
   const triggerNotification = useCallback(() => {
     setHasNotification(true);
-  }, []);
+    notificationSound?.play().catch(error => {
+      // Autoplay was prevented. This is common if the user hasn't interacted with the page yet.
+      console.log("Notification sound autoplay prevented:", error);
+    });
+  }, [notificationSound]);
 
   const clearNotification = useCallback(() => {
     setHasNotification(false);
