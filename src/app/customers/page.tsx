@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getCustomers, UserProfile } from "@/lib/firebase/firestore";
-import { MoreHorizontal, Loader2 } from "lucide-react";
+import { MoreHorizontal, Loader2, Star } from "lucide-react";
 import { format } from 'date-fns';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { StartChatButton } from "@/components/start-chat-button";
@@ -69,6 +69,17 @@ export default function CustomersPage() {
         <div>
           <div>{row.original.email}</div>
           <div className="text-muted-foreground text-xs">{row.original.phone || 'N/A'}</div>
+        </div>
+      )
+    },
+     {
+      accessorKey: 'rating',
+      header: 'Rating',
+      cell: ({ row }) => (
+        <div className="flex items-center gap-1">
+          <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
+          <span className="font-semibold">{row.original.rating?.toFixed(1) || 'New'}</span>
+          <span className="text-xs text-muted-foreground">({row.original.totalRatings || 0})</span>
         </div>
       )
     },
