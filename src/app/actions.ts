@@ -7,7 +7,7 @@ import {
   type SuggestRescheduleOptionsInput,
 } from "@/ai/flows/suggest-reschedule-options";
 import { db } from "@/lib/firebase/firebase";
-import { getDocument, getOrCreateChat as getOrCreateChatFirestore, UserProfile, Appointment, updateAverageRating, WalletTransaction } from "@/lib/firebase/firestore";
+import { getDocument, getOrCreateChat as getOrCreateChatFirestore, UserProfile, Appointment, updateAverageRating, WalletTransaction, createNotificationInFirestore } from "@/lib/firebase/firestore";
 import { addDoc, collection, doc, getDoc, increment, serverTimestamp, setDoc, updateDoc, writeBatch, runTransaction, query, where, getDocs, orderBy } from "firebase/firestore";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -119,7 +119,7 @@ export async function addAppointment(values: z.infer<typeof appointmentFormSchem
 
 
     try {
-        await addDoc(collection(db, "appointments"), {
+        const newAppointmentRef = await addDoc(collection(db, "appointments"), {
             ...validatedFields.data,
             customerName,
             customerPhotoURL,
@@ -127,6 +127,18 @@ export async function addAppointment(values: z.infer<typeof appointmentFormSchem
             barberPhotoURL,
             status: 'Confirmed',
             paymentStatus: 'Unpaid'
+        });
+        
+        // Create notifications for both users
+        await createNotification(customerId, {
+            title: "Appointment Confirmed!",
+            description: `Your appointment with ${barberName} for a ${service} has been confirmed.`,
+            href: `/appointments`,
+        });
+        await createNotification(barberId, {
+            title: "New Appointment Booked!",
+            description: `You have a new appointment with ${customerName} for a ${service}.`,
+            href: `/appointments`,
         });
 
         await getOrCreateChat(customerId, barberId);
@@ -174,6 +186,18 @@ export async function updateAppointment(values: z.infer<typeof editAppointmentFo
             customerPhotoURL: customerDoc.photoURL,
             barberName: barberDoc.displayName,
             barberPhotoURL: barberDoc.photoURL,
+        });
+
+        // Create notifications for both users
+        await createNotification(customerId, {
+            title: "Appointment Updated",
+            description: `Your appointment with ${barberDoc.displayName} has been updated.`,
+            href: `/appointments`,
+        });
+        await createNotification(barberId, {
+            title: "Appointment Updated",
+            description: `Your appointment with ${customerDoc.displayName} has been updated.`,
+            href: `/appointments`,
         });
         
         revalidatePath('/appointments');
@@ -237,6 +261,13 @@ export async function updateUserAccountStatus(values: z.infer<typeof updateUserA
     try {
         const userRef = doc(db, "users", userId);
         await updateDoc(userRef, { accountStatus: status });
+
+        // Create a notification for the user
+        await createNotification(userId, {
+            title: `Account Status Updated`,
+            description: `Your account status has been updated to: ${status}.`,
+            href: `/`,
+        });
         
         revalidatePath('/user-management');
         return { success: `User account has been ${status}.` };
@@ -264,7 +295,29 @@ export async function updateAppointmentStatus(values: z.infer<typeof updateAppoi
 
     try {
         const appointmentRef = doc(db, "appointments", values.appointmentId);
+        const appointmentSnap = await getDoc(appointmentRef);
+        if (!appointmentSnap.exists()) return { error: "Appointment not found." };
+        
+        const appointment = appointmentSnap.data();
+
         await updateDoc(appointmentRef, { status: values.status });
+
+        const customerId = appointment.customerId;
+        const barberId = appointment.barberId;
+        const customerName = appointment.customerName;
+        const barberName = appointment.barberName;
+        const statusText = values.status === 'InProgress' ? 'started' : 'completed';
+
+        await createNotification(customerId, {
+            title: `Appointment ${statusText}`,
+            description: `Your appointment with ${barberName} has been ${statusText}.`,
+            href: `/appointments`,
+        });
+        await createNotification(barberId, {
+            title: `Appointment ${statusText}`,
+            description: `Your appointment with ${customerName} has been ${statusText}.`,
+            href: `/appointments`,
+        });
         
         revalidatePath('/appointments');
         return { success: `Appointment status updated to ${values.status}!` };
@@ -315,6 +368,18 @@ export async function recordPayment(values: z.infer<typeof recordPaymentSchema>)
 
         await updateDoc(customerRef, { coins: increment(customerCoins) });
         await updateDoc(barberRef, { coins: increment(barberCoins) });
+
+        // Create notifications
+        await createNotification(appointment.customerId, {
+            title: "Payment Confirmed",
+            description: `Your payment of PKR ${values.amountPaid} has been recorded. You've earned ${customerCoins} coins!`,
+            href: `/billing`,
+        });
+        await createNotification(appointment.barberId, {
+            title: "Payment Received",
+            description: `Payment of PKR ${values.amountPaid} from ${appointment.customerName} has been recorded. You've earned ${barberCoins} coins!`,
+            href: `/billing`,
+        });
         
         revalidatePath('/appointments');
         revalidatePath('/billing');
@@ -356,12 +421,22 @@ export async function rateAppointment(values: z.infer<typeof rateAppointmentSche
         
         await updateDoc(appointmentRef, updateData);
         await updateAverageRating(ratedUserId);
+        
+        const appointmentSnap = await getDoc(appointmentRef);
+        const appointmentData = appointmentSnap.data() as Appointment;
+        const raterName = ratingField === 'barberRating' ? appointmentData.customerName : appointmentData.barberName;
+
+        await createNotification(ratedUserId, {
+            title: "You've received a new rating!",
+            description: `${raterName} gave you a ${rating}-star rating.`,
+            href: `/barbers/${ratedUserId}`,
+        });
 
         revalidatePath('/appointments');
         revalidatePath(`/barbers/${ratedUserId}`);
         return { success: "Rating submitted successfully!" };
 
-    } catch (error) {
+    } catch (error: any) {
         console.error("Firestore Error:", error);
         return { error: "Failed to submit rating." };
     }
@@ -407,6 +482,12 @@ export async function topUpWalletFromCoins(values: z.infer<typeof topUpWalletSch
         timestamp: serverTimestamp()
       });
     });
+
+    await createNotification(userId, {
+        title: "Wallet Top-up Successful",
+        description: `You converted ${coinsToConvert} coins to PKR ${pkrAmount.toFixed(2)}.`,
+        href: "/wallet"
+    });
     
     revalidatePath('/wallet');
     revalidatePath('/');
@@ -448,7 +529,7 @@ export async function payFromWallet(values: z.infer<typeof payFromWalletSchema>)
             transaction.update(customerRef, { walletBalance: increment(-price) });
             const customerTxRef = doc(collection(db, "users", appointment.customerId, "walletTransactions"));
             transaction.set(customerTxRef, {
-                amount: price,
+                amount: -price,
                 type: "Payment Sent",
                 description: `Payment for service: ${appointment.service} to ${appointment.barberName}`,
                 timestamp: serverTimestamp()
@@ -475,6 +556,18 @@ export async function payFromWallet(values: z.infer<typeof payFromWalletSchema>)
             const barberCoins = Math.floor(price / 100) * 50;
             transaction.update(customerRef, { coins: increment(customerCoins) });
             transaction.update(barberRef, { coins: increment(barberCoins) });
+
+            // 5. Create notifications
+            await createNotification(appointment.customerId, {
+                title: "Payment Successful",
+                description: `You paid PKR ${price} to ${appointment.barberName} from your wallet.`,
+                href: "/wallet"
+            });
+            await createNotification(appointment.barberId, {
+                title: "Payment Received",
+                description: `You received PKR ${price} from ${appointment.customerName} in your wallet.`,
+                href: "/wallet"
+            });
         });
 
         revalidatePath('/appointments');
@@ -585,5 +678,61 @@ export async function updateUserAvailability(values: z.infer<typeof userAvailabi
         return { success: "Availability updated successfully!" };
     } catch (error: any) {
         return { error: error.message || "Failed to update availability." };
+    }
+}
+
+// Notification Actions
+const createNotificationSchema = z.object({
+    userId: z.string().min(1),
+    title: z.string().min(1),
+    description: z.string().min(1),
+    href: z.string().optional(),
+});
+
+export async function createNotification(userId: string, data: Omit<z.infer<typeof createNotificationSchema>, 'userId'>) {
+    const validatedData = createNotificationSchema.safeParse({ userId, ...data });
+    if (!validatedData.success) {
+        // Fail silently in production
+        console.error("Invalid notification data:", validatedData.error);
+        return;
+    }
+    await createNotificationInFirestore(userId, validatedData.data);
+}
+
+const markNotificationAsReadSchema = z.object({
+    userId: z.string().min(1),
+    notificationId: z.string().min(1),
+});
+
+export async function markNotificationAsRead(values: z.infer<typeof markNotificationAsReadSchema>) {
+    try {
+        const notificationRef = doc(db, "users", values.userId, "notifications", values.notificationId);
+        await updateDoc(notificationRef, { read: true });
+        return { success: true };
+    } catch (error) {
+        console.error("Error marking notification as read:", error);
+        return { error: "Failed to update notification." };
+    }
+}
+
+const markAllNotificationsAsReadSchema = z.object({
+    userId: z.string().min(1),
+});
+
+export async function markAllNotificationsAsRead(values: z.infer<typeof markAllNotificationsAsReadSchema>) {
+     try {
+        const notificationsRef = collection(db, "users", values.userId, "notifications");
+        const q = query(notificationsRef, where("read", "==", false));
+        const querySnapshot = await getDocs(q);
+
+        const batch = writeBatch(db);
+        querySnapshot.docs.forEach(doc => {
+            batch.update(doc.ref, { read: true });
+        });
+        await batch.commit();
+        return { success: true };
+    } catch (error) {
+        console.error("Error marking all notifications as read:", error);
+        return { error: "Failed to update notifications." };
     }
 }

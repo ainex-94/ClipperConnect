@@ -72,7 +72,7 @@ interface EditAppointmentDialogProps {
 export function EditAppointmentDialog({ appointment, onSuccess }: EditAppointmentDialogProps) {
   const { toast } = useToast();
   const { user } = useAuth();
-  const { triggerNotification } = useNotification();
+  const { triggerNotificationSound } = useNotification();
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [customers, setCustomers] = useState<User[]>([]);
@@ -124,7 +124,7 @@ export function EditAppointmentDialog({ appointment, onSuccess }: EditAppointmen
         description: "Appointment has been updated.",
       });
       onSuccess();
-      triggerNotification();
+      triggerNotificationSound();
       setOpen(false);
     }
   }

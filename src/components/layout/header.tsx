@@ -8,26 +8,24 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuGroup,
 } from "@/components/ui/dropdown-menu";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Search, LogIn, LogOut, Coins, Bell } from "lucide-react";
+import { Search, LogIn, LogOut, Coins, Bell, CheckCheck, Loader2 } from "lucide-react";
 import { Input } from "../ui/input";
 import { useAuth } from "@/hooks/use-auth";
 import Link from "next/link";
 import { NewAppointmentDialog } from "../new-appointment-dialog";
 import { useNotification } from "@/hooks/use-notification";
+import { ScrollArea } from "../ui/scroll-area";
+import { formatDistanceToNow } from "date-fns";
+import { ViewNotificationDialog } from "../view-notification-dialog";
 
 export default function AppHeader() {
   const { user, logout } = useAuth();
-  const { hasNotification, clearNotification } = useNotification();
-
-  const handleNotificationClick = () => {
-    // In a real app, this would open a notification panel.
-    // For now, it just clears the indicator.
-    clearNotification();
-  };
+  const { notifications, unreadCount, markAllAsRead, loadingNotifications } = useNotification();
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background/95 px-4 backdrop-blur sm:px-6 lg:px-8">
@@ -50,16 +48,55 @@ export default function AppHeader() {
               <span>{(user.coins || 0).toLocaleString()}</span>
             </div>
             
-            <Button variant="ghost" size="icon" className="relative" onClick={handleNotificationClick}>
-              <Bell className="h-5 w-5" />
-              {hasNotification && (
-                <span className="absolute top-1 right-1 flex h-2.5 w-2.5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
-                </span>
-              )}
-              <span className="sr-only">Notifications</span>
-            </Button>
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="relative">
+                        <Bell className="h-5 w-5" />
+                        {unreadCount > 0 && (
+                            <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-xs text-white">
+                                {unreadCount}
+                            </span>
+                        )}
+                        <span className="sr-only">Notifications</span>
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-80">
+                    <DropdownMenuLabel className="flex items-center justify-between">
+                        Notifications
+                        {unreadCount > 0 && (
+                            <Button variant="ghost" size="sm" onClick={markAllAsRead} className="h-auto px-2 py-1 text-xs">
+                                <CheckCheck className="mr-1 h-3 w-3" />
+                                Mark all as read
+                            </Button>
+                        )}
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <ScrollArea className="h-[300px]">
+                        <DropdownMenuGroup>
+                            {loadingNotifications ? (
+                                <div className="flex justify-center items-center h-full">
+                                    <Loader2 className="h-5 w-5 animate-spin" />
+                                </div>
+                            ) : notifications.length > 0 ? (
+                                notifications.map(notif => (
+                                    <ViewNotificationDialog key={notif.id} notification={notif}>
+                                        <div className="flex items-start gap-3 p-2 rounded-md hover:bg-muted cursor-pointer">
+                                            {!notif.read && <div className="h-2.5 w-2.5 rounded-full bg-primary mt-1.5" />}
+                                            <div className="grid gap-1 flex-1 pl-2">
+                                                <p className="text-sm font-medium leading-none">{notif.title}</p>
+                                                <p className="text-sm text-muted-foreground line-clamp-2">{notif.description}</p>
+                                                <p className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(notif.timestamp), { addSuffix: true })}</p>
+                                            </div>
+                                        </div>
+                                    </ViewNotificationDialog>
+                                ))
+                            ) : (
+                                <p className="text-sm text-center text-muted-foreground py-16">No notifications yet.</p>
+                            )}
+                        </DropdownMenuGroup>
+                    </ScrollArea>
+                </DropdownMenuContent>
+            </DropdownMenu>
 
             <NewAppointmentDialog />
             <DropdownMenu>

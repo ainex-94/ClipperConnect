@@ -32,7 +32,7 @@ export function EnterPaymentDialog({ appointment, onSuccess }: EnterPaymentDialo
   const [isLoading, setIsLoading] = useState(false);
   const [amount, setAmount] = useState(appointment.price?.toString() || "");
   const { toast } = useToast();
-  const { triggerNotification } = useNotification();
+  const { triggerNotificationSound } = useNotification();
 
   const handleSavePayment = async () => {
     setIsLoading(true);
@@ -51,7 +51,7 @@ export function EnterPaymentDialog({ appointment, onSuccess }: EnterPaymentDialo
     } else {
       toast({ title: "Success", description: "Payment recorded successfully." });
       onSuccess();
-      triggerNotification();
+      triggerNotificationSound();
       setOpen(false);
     }
     setIsLoading(false);

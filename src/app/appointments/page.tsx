@@ -28,7 +28,7 @@ export default function AppointmentsPage() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
-  const { triggerNotification } = useNotification();
+  const { triggerNotificationSound } = useNotification();
   
   const fetchAppointments = useCallback(async () => {
     if (user) {
@@ -60,7 +60,7 @@ export default function AppointmentsPage() {
     const result = await payFromWallet({ appointmentId });
     if (result.success) {
       toast({ title: 'Success', description: result.success });
-      triggerNotification();
+      triggerNotificationSound();
       fetchAppointments();
     } else {
       toast({ variant: 'destructive', title: 'Payment Failed', description: result.error });

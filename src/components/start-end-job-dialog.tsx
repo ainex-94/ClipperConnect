@@ -31,7 +31,7 @@ export function StartEndJobDialog({ appointmentId, action, onSuccess }: StartEnd
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  const { triggerNotification } = useNotification();
+  const { triggerNotificationSound } = useNotification();
 
   const handleAction = async () => {
     setIsLoading(true);
@@ -44,7 +44,7 @@ export function StartEndJobDialog({ appointmentId, action, onSuccess }: StartEnd
     } else {
       toast({ title: "Success", description: `Job successfully ${action === 'start' ? 'started' : 'ended'}.` });
       onSuccess();
-      triggerNotification();
+      triggerNotificationSound();
       setOpen(false);
     }
     setIsLoading(false);

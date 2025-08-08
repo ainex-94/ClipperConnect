@@ -1,7 +1,7 @@
 
 'use server';
 
-import { collection, getDocs, getDoc, doc, query, where, DocumentData, Timestamp, serverTimestamp, addDoc, setDoc, orderBy, limit, updateDoc, or, increment, runTransaction } from 'firebase/firestore';
+import { collection, getDocs, getDoc, doc, query, where, DocumentData, Timestamp, serverTimestamp, addDoc, setDoc, orderBy, limit, updateDoc, or, increment, runTransaction, writeBatch } from 'firebase/firestore';
 import { db } from '@/lib/firebase/firebase';
 
 // Type Definitions
@@ -82,6 +82,14 @@ export interface WalletTransaction {
     timestamp: string;
 }
 
+export interface Notification {
+    id: string;
+    title: string;
+    description: string;
+    timestamp: string;
+    read: boolean;
+    href?: string;
+}
 
 // A helper function to safely stringify and parse complex objects, converting Timestamps to ISO strings.
 const safeJsonParse = (data: DocumentData) => {
@@ -306,4 +314,18 @@ export async function updateAverageRating(userId: string) {
             totalRatings: newTotalRatings,
         });
     });
+}
+
+// NOTIFICATION FUNCTIONS
+
+export async function createNotificationInFirestore(
+  userId: string,
+  notificationData: Omit<Notification, "id" | "read" | "timestamp">
+) {
+  const notificationsColRef = collection(db, "users", userId, "notifications");
+  await addDoc(notificationsColRef, {
+    ...notificationData,
+    read: false,
+    timestamp: serverTimestamp(),
+  });
 }

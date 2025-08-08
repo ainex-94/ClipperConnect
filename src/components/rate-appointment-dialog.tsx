@@ -36,7 +36,7 @@ export function RateAppointmentDialog({ appointmentId, ratedUserId, ratingField,
   const [hoverRating, setHoverRating] = useState(0);
   const [reviewText, setReviewText] = useState("");
   const { toast } = useToast();
-  const { triggerNotification } = useNotification();
+  const { triggerNotificationSound } = useNotification();
 
   const handleRate = async () => {
     if (rating === 0) {
@@ -52,7 +52,7 @@ export function RateAppointmentDialog({ appointmentId, ratedUserId, ratingField,
     } else {
       toast({ title: "Success", description: "Your rating has been submitted. Thank you!" });
       onSuccess();
-      triggerNotification();
+      triggerNotificationSound();
       setOpen(false);
     }
     setIsLoading(false);
