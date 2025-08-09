@@ -19,6 +19,7 @@ import { Star, MessageSquare, Calendar, Loader2 } from "lucide-react";
 import Image from "next/image";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { UserPresenceIndicator } from "@/components/user-presence-indicator";
 
 export default function BarberProfilePage() {
     const { user } = useAuth();
@@ -82,7 +83,10 @@ export default function BarberProfilePage() {
                                 <AvatarImage data-ai-hint="person portrait" src={barber.photoURL} alt={barber.displayName} />
                                 <AvatarFallback>{barber.displayName?.[0]}</AvatarFallback>
                             </Avatar>
-                            <CardTitle>{barber.displayName}</CardTitle>
+                            <div className="flex items-center gap-2">
+                                <CardTitle>{barber.displayName}</CardTitle>
+                                <UserPresenceIndicator presence={barber.presence} />
+                            </div>
                             <CardDescription>{barber.specialty || 'All-Rounder'}</CardDescription>
                              <div className="flex items-center justify-center gap-2 pt-2">
                                 <div className="flex items-center gap-1">

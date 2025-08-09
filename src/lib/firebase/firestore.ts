@@ -31,6 +31,10 @@ export interface UserProfile {
     address?: string;
     latitude?: number | null;
     longitude?: number | null;
+    presence?: {
+        status: 'online' | 'offline';
+        lastSeen: string;
+    }
 }
 
 export interface Message {

@@ -38,6 +38,20 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const updateUserPresence = async (uid: string, status: 'online' | 'offline') => {
+    const userRef = doc(db, 'users', uid);
+    try {
+        await updateDoc(userRef, {
+            presence: {
+                status: status,
+                lastSeen: new Date().toISOString()
+            }
+        });
+    } catch (error) {
+        console.error("Error updating presence:", error);
+    }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -86,6 +100,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setLoading(false);
         });
 
+        // Set user presence to online
+        updateUserPresence(firebaseUser.uid, 'online');
+
+        // Add beforeunload event listener to set presence to offline
+        const handleBeforeUnload = () => {
+          updateUserPresence(firebaseUser.uid, 'offline');
+        };
+        window.addEventListener('beforeunload', handleBeforeUnload);
+
+        return () => {
+            window.removeEventListener('beforeunload', handleBeforeUnload);
+            if (auth.currentUser) {
+              updateUserPresence(auth.currentUser.uid, 'offline');
+            }
+        }
+
       } else {
         setUser(null);
         setLoading(false);
@@ -129,6 +159,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             address: '',
             latitude: null,
             longitude: null,
+            presence: {
+                status: 'online',
+                lastSeen: new Date().toISOString()
+            }
         };
         await setDoc(userRef, newUserProfile);
         
@@ -208,6 +242,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     setLoading(true);
+    if(auth.currentUser) {
+        await updateUserPresence(auth.currentUser.uid, 'offline');
+    }
     await signOut(auth);
     router.push("/login"); 
     toast({

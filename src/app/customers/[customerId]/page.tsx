@@ -18,6 +18,7 @@ import { DataTable } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { UserPresenceIndicator } from "@/components/user-presence-indicator";
 
 export default function CustomerProfilePage() {
     const { user } = useAuth();
@@ -117,7 +118,10 @@ export default function CustomerProfilePage() {
                                 <AvatarImage data-ai-hint="person portrait" src={customer.photoURL} alt={customer.displayName} />
                                 <AvatarFallback>{customer.displayName?.[0]}</AvatarFallback>
                             </Avatar>
-                            <CardTitle>{customer.displayName}</CardTitle>
+                            <div className="flex items-center gap-2">
+                                <CardTitle>{customer.displayName}</CardTitle>
+                                <UserPresenceIndicator presence={customer.presence} />
+                            </div>
                              <div className="flex items-center justify-center gap-2 pt-2">
                                 <div className="flex items-center gap-1">
                                     {[...Array(5)].map((_, i) => (

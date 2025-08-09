@@ -1,3 +1,4 @@
+
 // src/app/user-management/page.tsx
 'use client';
 
@@ -12,6 +13,7 @@ import { Loader2 } from "lucide-react";
 import { DataTable } from "@/components/ui/data-table";
 import { type ColumnDef } from "@tanstack/react-table";
 import { StatusSwitcher } from "./_components/status-switcher";
+import { UserPresenceIndicator } from "@/components/user-presence-indicator";
 
 export default function UserManagementPage() {
     const { user } = useAuth();
@@ -67,8 +69,13 @@ export default function UserManagementPage() {
       },
       {
         accessorKey: 'accountStatus',
-        header: 'Status',
+        header: 'Account Status',
         cell: ({ row }) => <StatusSwitcher userId={row.original.id} currentStatus={row.original.accountStatus || 'Pending'} />
+      },
+       {
+        accessorKey: 'presence',
+        header: 'Presence',
+        cell: ({ row }) => <UserPresenceIndicator presence={row.original.presence} />
       },
       {
         accessorKey: 'createdAt',

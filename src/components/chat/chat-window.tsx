@@ -1,9 +1,10 @@
+
 // src/components/chat/chat-window.tsx
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { type Chat, type Message, sendMessage } from "@/lib/firebase/firestore";
+import { type Chat, type Message, sendMessage, getDocument, UserProfile } from "@/lib/firebase/firestore";
 import { db } from "@/lib/firebase/firebase";
 import { collection, query, orderBy, onSnapshot, doc } from "firebase/firestore";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
@@ -15,6 +16,7 @@ import { ScrollArea } from "../ui/scroll-area";
 import { markMessagesAsRead, updateUserTypingStatus } from "@/app/actions";
 import { useDebounce } from "@/hooks/use-debounce";
 import { MessageStatus } from "./message-status";
+import { UserPresenceIndicator } from "../user-presence-indicator";
 
 interface ChatWindowProps {
   chat: Chat | null;
@@ -29,9 +31,25 @@ export function ChatWindow({ chat, isMobile, onBack }: ChatWindowProps) {
   const [isTyping, setIsTyping] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [otherParticipant, setOtherParticipant] = useState<UserProfile | null>(null);
 
-  const otherParticipant = chat?.participants.find(p => p.id !== user?.uid);
   const otherUserIsTyping = chat?.typing?.[otherParticipant?.id || ""] || false;
+
+  useEffect(() => {
+    let unsub: (() => void) | undefined = undefined;
+    if(chat && user) {
+        const otherPId = chat.participants.find(p => p.id !== user.uid)?.id;
+        if (otherPId) {
+            const userRef = doc(db, 'users', otherPId);
+            unsub = onSnapshot(userRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    setOtherParticipant({ id: docSnap.id, ...docSnap.data() } as UserProfile);
+                }
+            });
+        }
+    }
+    return () => unsub?.();
+  }, [chat, user]);
 
   const debouncedTyping = useDebounce(() => {
     if (chat && user) {
@@ -117,7 +135,7 @@ export function ChatWindow({ chat, isMobile, onBack }: ChatWindowProps) {
   };
 
 
-  if (!chat || !user) {
+  if (!chat || !user || !otherParticipant) {
     return (
       <div className="flex h-full flex-col items-center justify-center text-muted-foreground p-8 text-center">
         <MessageSquare className="h-16 w-16 mb-4 text-muted-foreground/50"/>
@@ -140,7 +158,10 @@ export function ChatWindow({ chat, isMobile, onBack }: ChatWindowProps) {
             <AvatarFallback>{otherParticipant?.displayName?.[0]}</AvatarFallback>
         </Avatar>
         <div className="flex flex-col">
-            <h2 className="text-lg font-bold">{otherParticipant?.displayName}</h2>
+            <div className="flex items-center gap-2">
+                <h2 className="text-lg font-bold">{otherParticipant?.displayName}</h2>
+                <UserPresenceIndicator presence={otherParticipant.presence} />
+            </div>
             {otherUserIsTyping && <p className="text-xs text-primary animate-pulse">typing...</p>}
         </div>
       </header>
