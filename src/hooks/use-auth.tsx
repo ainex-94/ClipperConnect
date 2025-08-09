@@ -79,6 +79,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let unsubscribeFirestore: (() => void) | undefined;
+    let handleBeforeUnload: () => void;
 
     const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
       setLoading(true);
@@ -90,7 +91,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const userProfile = { id: docSnap.id, ...docSnap.data() } as UserProfile;
              setUser(userProfile);
           } else {
-            // This can happen briefly during registration
             setUser(null);
           }
           setLoading(false);
@@ -104,17 +104,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         updateUserPresence(firebaseUser.uid, 'online');
 
         // Add beforeunload event listener to set presence to offline
-        const handleBeforeUnload = () => {
-          updateUserPresence(firebaseUser.uid, 'offline');
+        handleBeforeUnload = () => {
+            // Use synchronous request if needed or just fire-and-forget
+            // Note: navigator.sendBeacon is the modern way, but updateDoc might not work with it.
+            // For simplicity, we'll just call the async function. It might not complete on all browsers.
+            if (auth.currentUser) {
+                 updateUserPresence(auth.currentUser.uid, 'offline');
+            }
         };
         window.addEventListener('beforeunload', handleBeforeUnload);
-
-        return () => {
-            window.removeEventListener('beforeunload', handleBeforeUnload);
-            if (auth.currentUser) {
-              updateUserPresence(auth.currentUser.uid, 'offline');
-            }
-        }
 
       } else {
         setUser(null);
@@ -129,6 +127,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       unsubscribeAuth();
       if (unsubscribeFirestore) {
         unsubscribeFirestore();
+      }
+      if (handleBeforeUnload) {
+          window.removeEventListener('beforeunload', handleBeforeUnload);
+          // When the app is shutting down or user logs out, also mark as offline.
+          if (auth.currentUser) {
+            updateUserPresence(auth.currentUser.uid, 'offline');
+          }
       }
     };
   }, []);
