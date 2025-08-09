@@ -745,22 +745,34 @@ const markMessagesAsReadSchema = z.object({
 export async function markMessagesAsRead(values: z.infer<typeof markMessagesAsReadSchema>) {
     const { chatId, currentUserId } = values;
     try {
-        const messagesRef = collection(db, "chats", chatId, "messages");
-        const q = query(messagesRef, where("receiverId", "==", currentUserId), where("status", "==", "sent"));
-        const querySnapshot = await getDocs(q);
-        
-        if (querySnapshot.empty) {
-            return { success: true, messagesUpdated: 0 };
-        }
-
         const batch = writeBatch(db);
-        querySnapshot.docs.forEach(doc => {
+
+        // 1. Mark messages as read
+        const messagesRef = collection(db, "chats", chatId, "messages");
+        const messagesQuery = query(messagesRef, where("receiverId", "==", currentUserId), where("status", "==", "sent"));
+        const messagesSnapshot = await getDocs(messagesQuery);
+        
+        messagesSnapshot.docs.forEach(doc => {
             batch.update(doc.ref, { status: "read" });
         });
+
+        // 2. Mark corresponding notifications as read
+        const notificationsRef = collection(db, "users", currentUserId, "notifications");
+        const notificationsQuery = query(
+            notificationsRef, 
+            where("href", "==", `/chat?chatId=${chatId}`),
+            where("read", "==", false)
+        );
+        const notificationsSnapshot = await getDocs(notificationsQuery);
+
+        notificationsSnapshot.docs.forEach(doc => {
+            batch.update(doc.ref, { read: true });
+        });
+
         await batch.commit();
         
         revalidatePath('/chat'); // To update notification counts
-        return { success: true, messagesUpdated: querySnapshot.size };
+        return { success: true, messagesUpdated: messagesSnapshot.size };
     } catch (error) {
         console.error("Error marking messages as read:", error);
         return { error: "Failed to mark messages as read." };
