@@ -1,5 +1,4 @@
 
-
 "use server";
 
 import {
@@ -275,6 +274,33 @@ export async function updateUserAccountStatus(values: z.infer<typeof updateUserA
     } catch (error) {
         console.error("Firestore Error:", error);
         return { error: "Failed to update user account status." };
+    }
+}
+
+const updateAppointmentStatusSchema = z.object({
+    appointmentId: z.string().min(1),
+    status: z.enum(['InProgress', 'Completed']),
+});
+
+export async function updateAppointmentStatus(values: z.infer<typeof updateAppointmentStatusSchema>) {
+    const validatedFields = updateAppointmentStatusSchema.safeParse(values);
+
+    if (!validatedFields.success) {
+        return {
+            error: "Invalid fields: " + validatedFields.error.errors.map(e => e.message).join(', '),
+        };
+    }
+
+    try {
+        const appointmentRef = doc(db, "appointments", values.appointmentId);
+        await updateDoc(appointmentRef, { status: values.status });
+        
+        revalidatePath('/appointments');
+        return { success: `Appointment status updated to ${values.status}!` };
+
+    } catch (error) {
+        console.error("Firestore Error:", error);
+        return { error: "Failed to update appointment status." };
     }
 }
 

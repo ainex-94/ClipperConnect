@@ -6,7 +6,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getAppointmentsForUser, Appointment, getAllAppointments } from "@/lib/firebase/firestore";
-import { MoreHorizontal, Loader2, Wallet } from "lucide-react";
+import { MoreHorizontal, Loader2, Wallet, CheckCircle } from "lucide-react";
 import { format } from 'date-fns';
 import { NewAppointmentDialog } from "@/components/new-appointment-dialog";
 import { Button } from "@/components/ui/button";
@@ -17,7 +17,7 @@ import { RateAppointmentDialog } from "@/components/rate-appointment-dialog";
 import { EditAppointmentDialog } from "@/components/edit-appointment-dialog";
 import { DataTable } from "@/components/ui/data-table";
 import { type ColumnDef } from "@tanstack/react-table";
-import { payFromWallet } from "../actions";
+import { payFromWallet, updateAppointmentStatus } from "../actions";
 import { useToast } from "@/hooks/use-toast";
 import { useNotification } from "@/hooks/use-notification";
 
@@ -57,6 +57,16 @@ export default function AppointmentsPage() {
       }
     }
   }, [user, authLoading, fetchAppointments]);
+  
+  const handleMarkAsCompleted = async (appointmentId: string) => {
+    const result = await updateAppointmentStatus({ appointmentId, status: 'Completed' });
+    if (result.success) {
+      toast({ title: 'Success', description: result.success });
+      fetchAppointments();
+    } else {
+      toast({ variant: 'destructive', title: 'Error', description: result.error });
+    }
+  };
 
   const handlePayFromWallet = async (appointmentId: string) => {
     setLoading(true);
@@ -139,7 +149,13 @@ export default function AppointmentsPage() {
                 {isBarber && (
                   <>
                     <DropdownMenuSeparator />
-                    {appointment.status === 'Confirmed' && appointment.paymentStatus !== 'Paid' && (
+                    {appointment.status === 'Confirmed' && (
+                        <DropdownMenuItem onSelect={() => handleMarkAsCompleted(appointment.id)}>
+                            <CheckCircle className="mr-2 h-4 w-4" />
+                            Mark as Completed
+                        </DropdownMenuItem>
+                    )}
+                    {appointment.status === 'Completed' && appointment.paymentStatus !== 'Paid' && (
                        <EnterPaymentDialog
                         appointment={appointment}
                         onSuccess={fetchAppointments}
