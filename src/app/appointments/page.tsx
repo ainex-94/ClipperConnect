@@ -17,7 +17,7 @@ import { RateAppointmentDialog } from "@/components/rate-appointment-dialog";
 import { EditAppointmentDialog } from "@/components/edit-appointment-dialog";
 import { DataTable } from "@/components/ui/data-table";
 import { type ColumnDef } from "@tanstack/react-table";
-import { payFromWallet, updateAppointmentStatus } from "../actions";
+import { recordPayment, updateAppointmentStatus } from "../actions";
 import { useToast } from "@/hooks/use-toast";
 import { useNotification } from "@/hooks/use-notification";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -166,6 +166,9 @@ export default function AppointmentsPage() {
         const isCustomer = user.role === 'customer';
         const isAdmin = user.role === 'admin';
         const canPay = isCustomer && appointment.status === 'Completed' && appointment.paymentStatus !== 'Paid';
+        const isConfirmedAndUnpaid = appointment.status === 'Confirmed' && appointment.paymentStatus !== 'Paid';
+        const isCompletedAndUnpaid = appointment.status === 'Completed' && appointment.paymentStatus !== 'Paid';
+
 
         return (
           <div className="text-right">
@@ -193,7 +196,7 @@ export default function AppointmentsPage() {
                             Mark as Completed
                         </DropdownMenuItem>
                     )}
-                    {appointment.status === 'Completed' && appointment.paymentStatus !== 'Paid' && (
+                    {isCompletedAndUnpaid && (
                        <EnterPaymentDialog
                         appointment={appointment}
                         onSuccess={fetchAppointments}
@@ -292,7 +295,6 @@ export default function AppointmentsPage() {
                             <SelectValue placeholder="Select an appointment status" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="">All</SelectItem>
                             {appointmentStatuses.map(status => (
                                 <SelectItem key={status} value={status}>{status}</SelectItem>
                             ))}
@@ -305,7 +307,6 @@ export default function AppointmentsPage() {
                             <SelectValue placeholder="Select a payment status" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="">All</SelectItem>
                             {paymentStatuses.map(status => (
                                 <SelectItem key={status} value={status!}>{status}</SelectItem>
                             ))}
