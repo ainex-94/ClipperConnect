@@ -1,26 +1,25 @@
-
 // src/app/barbers/[barberId]/page.tsx
 'use client';
 
 import { useState, useEffect } from "react";
 import { useParams } from 'next/navigation';
-import { getDocument, getCompletedAppointmentsForBarber, UserProfile, Appointment } from "@/lib/firebase/firestore";
+import { getDocument, getCompletedAppointmentsForBarber, UserProfile, Appointment, getServicesForBarber, Service } from "@/lib/firebase/firestore";
 import { useAuth } from "@/hooks/use-auth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
-import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ViewScheduleDialog } from "@/components/view-schedule-dialog";
 import { StartChatButton } from "@/components/start-chat-button";
 import { NewAppointmentDialog } from "@/components/new-appointment-dialog";
-import { Star, MessageSquare, Calendar, Loader2, MapPin } from "lucide-react";
+import { Star, Loader2, MapPin, Wrench } from "lucide-react";
 import Image from "next/image";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { UserPresenceIndicator } from "@/components/user-presence-indicator";
 import Link from "next/link";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export default function BarberProfilePage() {
     const { user } = useAuth();
@@ -29,15 +28,17 @@ export default function BarberProfilePage() {
     
     const [barber, setBarber] = useState<UserProfile | null>(null);
     const [reviews, setReviews] = useState<Appointment[]>([]);
+    const [services, setServices] = useState<Service[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         if (barberId) {
             const fetchData = async () => {
                 setLoading(true);
-                const [barberData, appointmentsData] = await Promise.all([
+                const [barberData, appointmentsData, servicesData] = await Promise.all([
                     getDocument('users', barberId),
-                    getCompletedAppointmentsForBarber(barberId)
+                    getCompletedAppointmentsForBarber(barberId),
+                    getServicesForBarber(barberId)
                 ]);
 
                 if (barberData) {
@@ -46,6 +47,7 @@ export default function BarberProfilePage() {
                 
                 const validReviews = appointmentsData.filter(app => app.barberRating && app.reviewText);
                 setReviews(validReviews);
+                setServices(servicesData);
 
                 setLoading(false);
             };
@@ -120,7 +122,7 @@ export default function BarberProfilePage() {
                     </Card>
                 </div>
 
-                {/* Right Column - Gallery & Reviews */}
+                {/* Right Column - Gallery, Services & Reviews */}
                 <div className="md:col-span-2 space-y-8">
                     {/* Gallery */}
                     <div>
@@ -150,6 +152,45 @@ export default function BarberProfilePage() {
                         </Carousel>
                     </div>
 
+                    <Separator />
+
+                    {/* Services */}
+                    <div>
+                        <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
+                           <Wrench /> Services
+                        </h2>
+                        <Card>
+                            <CardContent className="p-0">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Service</TableHead>
+                                            <TableHead>Duration</TableHead>
+                                            <TableHead className="text-right">Price</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {services.length > 0 ? (
+                                            services.map(service => (
+                                                <TableRow key={service.id}>
+                                                    <TableCell className="font-medium">{service.name}</TableCell>
+                                                    <TableCell>{service.duration} mins</TableCell>
+                                                    <TableCell className="text-right">PKR {service.price.toLocaleString()}</TableCell>
+                                                </TableRow>
+                                            ))
+                                        ) : (
+                                            <TableRow>
+                                                <TableCell colSpan={3} className="text-center text-muted-foreground h-24">
+                                                    No services listed yet.
+                                                </TableCell>
+                                            </TableRow>
+                                        )}
+                                    </TableBody>
+                                </Table>
+                            </CardContent>
+                        </Card>
+                    </div>
+                    
                     <Separator />
                     
                     {/* Reviews */}

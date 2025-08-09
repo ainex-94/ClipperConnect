@@ -1,4 +1,3 @@
-
 // src/components/new-appointment-dialog.tsx
 "use client";
 
@@ -38,6 +37,8 @@ import {
 import { PlusCircle, Loader2 } from "lucide-react";
 import { getCustomers, getBarbers, UserProfile, getServicesForBarber, Service } from "@/lib/firebase/firestore";
 import { useNotification } from "@/hooks/use-notification";
+import { Combobox } from "./ui/combobox";
+import Link from "next/link";
 
 const formSchema = z.object({
   customerId: z.string().min(1, "Please select a customer."),
@@ -154,6 +155,11 @@ export function NewAppointmentDialog({ onSuccess }: NewAppointmentDialogProps) {
   }
   
   if (!user) return null;
+
+  const serviceOptions = services.map(s => ({
+    value: s.name,
+    label: `${s.name} - PKR ${s.price.toLocaleString()}`
+  }));
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -289,32 +295,30 @@ export function NewAppointmentDialog({ onSuccess }: NewAppointmentDialogProps) {
               control={form.control}
               name="service"
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Service</FormLabel>
-                   <Select 
-                      onValueChange={(value) => {
-                        const selectedService = services.find(s => s.name === value);
-                        if (selectedService) {
-                          field.onChange(value);
-                          form.setValue('price', selectedService.price);
-                        }
-                      }} 
-                      defaultValue={field.value}
-                      disabled={!selectedBarberId || services.length === 0 || isLoading}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder={!selectedBarberId ? "First select a barber" : "Select a service"} />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {services.map((service) => (
-                          <SelectItem key={service.id} value={service.name}>
-                            {service.name} - PKR {service.price.toLocaleString()}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                <FormItem className="flex flex-col">
+                  <div className="flex justify-between items-center">
+                    <FormLabel>Service</FormLabel>
+                    {selectedBarberId && (
+                      <Link href={`/barbers/${selectedBarberId}`} target="_blank" className="text-xs text-primary hover:underline">
+                        View all services
+                      </Link>
+                    )}
+                  </div>
+                  <Combobox
+                    options={serviceOptions}
+                    value={field.value}
+                    onChange={(value) => {
+                      const selectedService = services.find(s => s.name === value);
+                      if (selectedService) {
+                        field.onChange(value);
+                        form.setValue('price', selectedService.price);
+                      }
+                    }}
+                    placeholder={!selectedBarberId ? "First select a barber" : "Select a service"}
+                    searchPlaceholder="Search services..."
+                    emptyText="No services found."
+                    disabled={!selectedBarberId || services.length === 0 || isLoading}
+                  />
                   <FormMessage />
                 </FormItem>
               )}
