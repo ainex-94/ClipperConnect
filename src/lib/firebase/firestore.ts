@@ -136,7 +136,6 @@ export async function getCustomers() {
 }
 
 export async function getBarbers() {
-    // Fetches all users with the 'barber' role, including shop owners and workers.
     return getUsersWithRole('barber');
 }
 
@@ -189,6 +188,19 @@ export async function getAppointmentsForUser(userId: string): Promise<Appointmen
     
     return appointments;
 }
+
+export async function getAppointmentsForWorker(workerId: string): Promise<Appointment[]> {
+    const q = query(
+        collection(db, "appointments"),
+        where('assignedWorkerId', '==', workerId)
+    );
+    
+    const querySnapshot = await getDocs(q);
+    const appointments = querySnapshot.docs.map(doc => safeJsonParse({ id: doc.id, ...doc.data() })) as Appointment[];
+    appointments.sort((a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime());
+    return appointments;
+}
+
 
 export async function getCompletedAppointmentsForBarber(barberId: string): Promise<Appointment[]> {
     const q = query(
@@ -363,7 +375,7 @@ export async function sendMessage(chatId: string, senderId: string, receiverId: 
     }
 }
 
-export async function updateAverageRating(userId: string) {
+export async function updateAverageRating(userId: string, ratedAs: 'barber' | 'customer') {
     const userRef = doc(db, "users", userId);
     
     await runTransaction(db, async (transaction) => {
@@ -372,21 +384,29 @@ export async function updateAverageRating(userId: string) {
             throw new Error("User document does not exist!");
         }
 
-        const userData = userDoc.data() as UserProfile;
-        const ratingField = userData.role === 'barber' ? 'barberRating' : 'customerRating';
-        const userIdentifierField = userData.role === 'barber' ? 'barberId' : 'customerId';
+        let q;
+        if (ratedAs === 'barber') {
+            q = query(
+                collection(db, "appointments"),
+                or(
+                    where('barberId', '==', userId),
+                    where('assignedWorkerId', '==', userId)
+                ),
+                where('barberRating', '>', 0)
+            );
+        } else { // ratedAs 'customer'
+             q = query(
+                collection(db, "appointments"),
+                where('customerId', '==', userId),
+                where('customerRating', '>', 0)
+            );
+        }
+        
+        const appointmentSnapshot = await getDocs(q);
         
         let newRatingSum = 0;
         let newTotalRatings = 0;
-
-        // Query appointments where this user was rated
-        const appointmentQuery = query(
-            collection(db, "appointments"),
-            where(userIdentifierField, '==', userId),
-            where(ratingField, '>', 0) // Ensure we only get rated appointments
-        );
-
-        const appointmentSnapshot = await getDocs(appointmentQuery);
+        const ratingField = ratedAs === 'barber' ? 'barberRating' : 'customerRating';
 
         appointmentSnapshot.forEach(appointmentDoc => {
             const appointmentData = appointmentDoc.data();
@@ -402,6 +422,7 @@ export async function updateAverageRating(userId: string) {
         });
     });
 }
+
 
 // NOTIFICATION FUNCTIONS
 

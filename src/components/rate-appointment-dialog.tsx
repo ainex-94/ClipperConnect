@@ -23,13 +23,11 @@ import { Textarea } from "./ui/textarea";
 
 interface RateAppointmentDialogProps {
   appointmentId: string;
-  ratedUserId: string;
-  ratingField: 'barberRating' | 'customerRating';
   userNameToRate: string;
   onSuccess: () => void;
 }
 
-export function RateAppointmentDialog({ appointmentId, ratedUserId, ratingField, userNameToRate, onSuccess }: RateAppointmentDialogProps) {
+export function RateAppointmentDialog({ appointmentId, userNameToRate, onSuccess }: RateAppointmentDialogProps) {
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [rating, setRating] = useState(0);
@@ -45,7 +43,7 @@ export function RateAppointmentDialog({ appointmentId, ratedUserId, ratingField,
     }
     
     setIsLoading(true);
-    const result = await rateAppointment({ appointmentId, ratedUserId, rating, ratingField, reviewText });
+    const result = await rateAppointment({ appointmentId, rating, reviewText });
 
     if (result.error) {
       toast({ variant: "destructive", title: "Error", description: result.error });
@@ -63,7 +61,7 @@ export function RateAppointmentDialog({ appointmentId, ratedUserId, ratingField,
       <DialogTrigger asChild>
         <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
           <Star className="mr-2 h-4 w-4" />
-          Rate {ratingField === 'barberRating' ? 'Barber' : 'Customer'}
+          Rate Experience
         </DropdownMenuItem>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">

@@ -26,6 +26,8 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { removeWorker } from "../actions";
 import { Badge } from "@/components/ui/badge";
+import Link from "next/link";
+
 
 export default function WorkersPage() {
     const { user } = useAuth();
@@ -87,13 +89,13 @@ export default function WorkersPage() {
         accessorKey: 'displayName',
         header: 'Name',
         cell: ({ row }) => (
-          <div className="flex items-center gap-3 group">
+          <Link href={`/workers/${row.original.id}`} className="flex items-center gap-3 group">
             <Avatar>
               <AvatarImage data-ai-hint="person portrait" src={row.original.photoURL} />
               <AvatarFallback>{row.original.displayName?.split(' ').map(n => n[0]).join('')}</AvatarFallback>
             </Avatar>
-            <span className="font-medium">{row.original.displayName}</span>
-          </div>
+            <span className="font-medium group-hover:underline">{row.original.displayName}</span>
+          </Link>
         ),
       },
       {

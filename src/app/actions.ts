@@ -414,9 +414,7 @@ export async function recordPayment(values: z.infer<typeof recordPaymentSchema>)
 
 const rateAppointmentSchema = z.object({
   appointmentId: z.string().min(1),
-  ratedUserId: z.string().min(1),
   rating: z.number().min(1).max(5),
-  ratingField: z.enum(['barberRating', 'customerRating']),
   reviewText: z.string().optional(),
 });
 
@@ -428,10 +426,19 @@ export async function rateAppointment(values: z.infer<typeof rateAppointmentSche
             error: "Invalid fields: " + validatedFields.error.errors.map(e => e.message).join(', '),
         };
     }
-    const { appointmentId, ratedUserId, rating, ratingField, reviewText } = validatedFields.data;
+    const { appointmentId, rating, reviewText } = validatedFields.data;
 
     try {
         const appointmentRef = doc(db, "appointments", appointmentId);
+        const appointmentSnap = await getDoc(appointmentRef);
+        if (!appointmentSnap.exists()) {
+            return { error: "Appointment not found." };
+        }
+        const appointmentData = appointmentSnap.data() as Appointment;
+        
+        // Determine who to rate: the worker or the shop owner
+        const ratedUserId = appointmentData.assignedWorkerId || appointmentData.barberId;
+        const ratingField = 'barberRating'; // Always the barber/worker being rated by a customer
         
         const updateData: { [key: string]: any } = { [ratingField]: rating };
         if (reviewText) {
@@ -439,20 +446,21 @@ export async function rateAppointment(values: z.infer<typeof rateAppointmentSche
         }
         
         await updateDoc(appointmentRef, updateData);
-        await updateAverageRating(ratedUserId);
+        await updateAverageRating(ratedUserId, 'barber'); // Update the rating for the barber/worker
         
-        const appointmentSnap = await getDoc(appointmentRef);
-        const appointmentData = appointmentSnap.data() as Appointment;
-        const raterName = ratingField === 'barberRating' ? appointmentData.customerName : appointmentData.barberName;
+        const raterName = appointmentData.customerName;
 
         await createNotification(ratedUserId, {
             title: "You've received a new rating!",
             description: `${raterName} gave you a ${rating}-star rating.`,
-            href: `/barbers/${ratedUserId}`,
+            href: ratedUserId === appointmentData.barberId ? `/barbers/${ratedUserId}` : `/workers/${ratedUserId}`,
         });
 
         revalidatePath('/appointments');
-        revalidatePath(`/barbers/${ratedUserId}`);
+        revalidatePath(`/barbers/${appointmentData.barberId}`);
+        if(appointmentData.assignedWorkerId) {
+            revalidatePath(`/workers/${appointmentData.assignedWorkerId}`);
+        }
         return { success: "Rating submitted successfully!" };
 
     } catch (error: any) {
