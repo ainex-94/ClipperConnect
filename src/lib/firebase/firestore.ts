@@ -3,7 +3,7 @@
 
 import { collection, getDocs, getDoc, doc, query, where, DocumentData, Timestamp, serverTimestamp, addDoc, setDoc, orderBy, limit, updateDoc, or, increment, runTransaction, writeBatch, deleteDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase/firebase';
-import { startOfDay, endOfDay } from 'date-fns';
+import { startOfDay, endOfDay, isWithinInterval } from 'date-fns';
 
 // Type Definitions
 export interface UserProfile {
@@ -207,14 +207,22 @@ export async function getAppointmentsForBarberOnDate(barberId: string, date: Dat
     const start = startOfDay(date);
     const end = endOfDay(date);
 
+    // Query just by barberId to avoid needing a composite index
     const q = query(
         collection(db, "appointments"),
-        where('barberId', '==', barberId),
-        where('dateTime', '>=', start.toISOString()),
-        where('dateTime', '<=', end.toISOString())
+        where('barberId', '==', barberId)
     );
+
     const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => safeJsonParse({ id: doc.id, ...doc.data() })) as Appointment[];
+    const allAppointments = querySnapshot.docs.map(doc => safeJsonParse({ id: doc.id, ...doc.data() })) as Appointment[];
+
+    // Filter by date in memory
+    const appointmentsOnDate = allAppointments.filter(appt => {
+        const apptDate = new Date(appt.dateTime);
+        return isWithinInterval(apptDate, { start, end });
+    });
+    
+    return appointmentsOnDate;
 }
 
 export async function getAppointmentsForWorker(workerId: string): Promise<Appointment[]> {
