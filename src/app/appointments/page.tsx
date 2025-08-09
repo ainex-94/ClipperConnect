@@ -144,6 +144,11 @@ export default function AppointmentsPage() {
         )
     },
     {
+      accessorKey: "paymentMethod",
+      header: "Payment Method",
+      cell: ({ row }) => row.original.paymentMethod || 'N/A',
+    },
+    {
       id: "actions",
       cell: ({ row }) => {
         const appointment = row.original;
@@ -314,5 +319,3 @@ export default function AppointmentsPage() {
     </Card>
   );
 }
-
-    

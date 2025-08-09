@@ -118,6 +118,11 @@ export default function BillingPage() {
       ),
     },
     {
+      accessorKey: "paymentMethod",
+      header: "Payment Method",
+      cell: ({ row }) => row.original.paymentMethod || 'N/A',
+    },
+    {
       id: "actions",
       cell: ({ row }) => {
         const appointment = row.original;
