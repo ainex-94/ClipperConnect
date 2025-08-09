@@ -3,6 +3,7 @@
 
 import { collection, getDocs, getDoc, doc, query, where, DocumentData, Timestamp, serverTimestamp, addDoc, setDoc, orderBy, limit, updateDoc, or, increment, runTransaction, writeBatch, deleteDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase/firebase';
+import { startOfDay, endOfDay } from 'date-fns';
 
 // Type Definitions
 export interface UserProfile {
@@ -75,6 +76,7 @@ export interface Appointment {
   barberPhotoURL?: string;
   service: string;
   dateTime: string;
+  duration: number; // in minutes
   status: 'Confirmed' | 'Pending' | 'Completed' | 'Cancelled' | 'InProgress';
   price?: number;
   paymentStatus?: 'Paid' | 'Unpaid';
@@ -141,11 +143,11 @@ export async function getUsersWithRole(role: 'customer' | 'barber' | 'admin'): P
     return querySnapshot.docs.map(doc => safeJsonParse({ id: doc.id, ...doc.data() }));
 }
 
-export async function getCustomers() {
+export async function getCustomers(): Promise<UserProfile[]> {
     return getUsersWithRole('customer');
 }
 
-export async function getBarbers() {
+export async function getBarbers(): Promise<UserProfile[]> {
     const q = query(collection(db, "users"), where("role", "==", "barber"));
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(doc => safeJsonParse({ id: doc.id, ...doc.data() })) as UserProfile[];
@@ -199,6 +201,20 @@ export async function getAppointmentsForUser(userId: string): Promise<Appointmen
     appointments.sort((a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime());
     
     return appointments;
+}
+
+export async function getAppointmentsForBarberOnDate(barberId: string, date: Date): Promise<Appointment[]> {
+    const start = startOfDay(date);
+    const end = endOfDay(date);
+
+    const q = query(
+        collection(db, "appointments"),
+        where('barberId', '==', barberId),
+        where('dateTime', '>=', start.toISOString()),
+        where('dateTime', '<=', end.toISOString())
+    );
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => safeJsonParse({ id: doc.id, ...doc.data() })) as Appointment[];
 }
 
 export async function getAppointmentsForWorker(workerId: string): Promise<Appointment[]> {

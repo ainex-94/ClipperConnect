@@ -6,12 +6,13 @@ import {
   type SuggestRescheduleOptionsInput,
 } from "@/ai/flows/suggest-reschedule-options";
 import { auth, db } from "@/lib/firebase/firebase";
-import { getDocument, getOrCreateChat as getOrCreateChatFirestore, UserProfile, Appointment, updateAverageRating, WalletTransaction, createNotificationInFirestore, removeWorker as removeWorkerFromFirestore, findAvailableWorker, getWorkersForBarber, Service } from "@/lib/firebase/firestore";
+import { getDocument, getOrCreateChat as getOrCreateChatFirestore, UserProfile, Appointment, updateAverageRating, WalletTransaction, createNotificationInFirestore, removeWorker as removeWorkerFromFirestore, findAvailableWorker, getWorkersForBarber, Service, getAppointmentsForBarberOnDate } from "@/lib/firebase/firestore";
 import { addDoc, collection, doc, getDoc, increment, serverTimestamp, setDoc, updateDoc, writeBatch, runTransaction, query, where, getDocs, orderBy, deleteDoc } from "firebase/firestore";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import ImageKit from "imagekit";
 import { createUserWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth";
+import { addMinutes, isWithinInterval } from "date-fns";
 
 const imagekit = new ImageKit({
   publicKey: process.env.IMAGEKIT_PUBLIC_KEY!,
@@ -89,9 +90,10 @@ export async function getRescheduleSuggestions(
 const appointmentFormSchema = z.object({
   customerId: z.string().min(1, "Please select a customer."),
   barberId: z.string().min(1, "Please select a barber."),
-  service: z.string().min(2, "Service must be at least 2 characters.").max(50),
+  serviceName: z.string().min(2, "Service must be at least 2 characters.").max(50),
   dateTime: z.string().min(1, "Please select a date and time."),
   price: z.number().min(0, "Price cannot be negative."),
+  duration: z.number().positive("Duration must be a positive number."),
 });
 
 export async function addAppointment(values: z.infer<typeof appointmentFormSchema>) {
@@ -103,8 +105,27 @@ export async function addAppointment(values: z.infer<typeof appointmentFormSchem
         };
     }
     
-    const { customerId, barberId, service, dateTime, price } = validatedFields.data;
+    const { customerId, barberId, serviceName, dateTime, price, duration } = validatedFields.data;
     
+    // --- Server-side availability check ---
+    const requestedStartTime = new Date(dateTime);
+    const requestedEndTime = addMinutes(requestedStartTime, duration);
+
+    const existingAppointments = await getAppointmentsForBarberOnDate(barberId, requestedStartTime);
+
+    const isSlotTaken = existingAppointments.some(appt => {
+        const existingStartTime = new Date(appt.dateTime);
+        const existingEndTime = addMinutes(existingStartTime, appt.duration || 30); // Use default duration if not set
+        
+        // Check for overlap
+        return (requestedStartTime < existingEndTime && requestedEndTime > existingStartTime);
+    });
+
+    if (isSlotTaken) {
+        return { error: "This time slot is no longer available. Please select another time." };
+    }
+    // --- End server-side availability check ---
+
     const customerDoc = await getDocument("users", customerId);
     const barberDoc = await getDocument("users", barberId) as UserProfile;
 
@@ -126,7 +147,12 @@ export async function addAppointment(values: z.infer<typeof appointmentFormSchem
 
     try {
         const appointmentData: any = {
-            ...validatedFields.data,
+            customerId,
+            barberId,
+            service: serviceName,
+            dateTime,
+            price,
+            duration,
             customerName: customerDoc.displayName,
             customerPhotoURL: customerDoc.photoURL,
             barberName: barberDoc.displayName,
@@ -151,12 +177,12 @@ export async function addAppointment(values: z.infer<typeof appointmentFormSchem
         // Create notifications for both users
         await createNotification(customerId, {
             title: "Appointment Confirmed!",
-            description: `Your appointment with ${barberDoc.displayName} for a ${service} has been confirmed.`,
+            description: `Your appointment with ${barberDoc.displayName} for a ${serviceName} has been confirmed.`,
             href: `/appointments`,
         });
         await createNotification(barberId, {
             title: "New Appointment Booked!",
-            description: `You have a new appointment with ${customerDoc.displayName} for a ${service}.`,
+            description: `You have a new appointment with ${customerDoc.displayName} for a ${serviceName}.`,
             href: `/appointments`,
         });
 
@@ -174,7 +200,13 @@ export async function addAppointment(values: z.infer<typeof appointmentFormSchem
     }
 }
 
-const editAppointmentFormSchema = appointmentFormSchema.extend({
+const editAppointmentFormSchema = z.object({
+  customerId: z.string().min(1, "Please select a customer."),
+  barberId: z.string().min(1, "Please select a barber."),
+  service: z.string().min(2, "Service must be at least 2 characters.").max(50),
+  dateTime: z.string().min(1, "Please select a date and time."),
+  price: z.number().min(0, "Price cannot be negative."),
+}).extend({
     appointmentId: z.string().min(1),
 });
 

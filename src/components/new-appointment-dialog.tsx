@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { addAppointment } from "@/app/actions";
@@ -35,23 +35,22 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PlusCircle, Loader2 } from "lucide-react";
-import { getCustomers, getBarbers, UserProfile, getServicesForBarber, Service } from "@/lib/firebase/firestore";
+import { getCustomers, getBarbers, UserProfile, getServicesForBarber, Service, getAppointmentsForBarberOnDate, Appointment } from "@/lib/firebase/firestore";
 import { useNotification } from "@/hooks/use-notification";
 import { Combobox } from "./ui/combobox";
 import Link from "next/link";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { format, setHours, setMinutes, setSeconds, setMilliseconds, parse, startOfDay } from "date-fns";
 
 const formSchema = z.object({
   customerId: z.string().min(1, "Please select a customer."),
   barberId: z.string().min(1, "Please select a barber."),
-  service: z.string().min(1, "Please select a service."),
-  dateTime: z.string().min(1, "Please select a date and time."),
-  price: z.number(), // Price will be set programmatically
+  serviceName: z.string().min(1, "Please select a service."),
+  dateTime: z.date({ required_error: "Please select a date and time." }),
+  price: z.number(),
+  duration: z.number(),
 });
-
-interface User {
-  id: string;
-  displayName: string;
-}
 
 interface NewAppointmentDialogProps {
   onSuccess?: () => void;
@@ -63,67 +62,121 @@ export function NewAppointmentDialog({ onSuccess }: NewAppointmentDialogProps) {
   const { triggerNotificationSound } = useNotification();
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [customers, setCustomers] = useState<User[]>([]);
-  const [barbers, setBarbers] = useState<User[]>([]);
+  const [customers, setCustomers] = useState<UserProfile[]>([]);
+  const [barbers, setBarbers] = useState<UserProfile[]>([]);
   const [services, setServices] = useState<Service[]>([]);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [availableSlots, setAvailableSlots] = useState<Date[]>([]);
+  const [bookedAppointments, setBookedAppointments] = useState<Appointment[]>([]);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: {
-      dateTime: new Date(new Date().getTime() + 60 * 60 * 1000).toISOString().substring(0, 16), // 1 hour from now
-    },
   });
 
   const selectedBarberId = form.watch("barberId");
-
-  const fetchServices = useCallback(async (barberId: string) => {
-    if (!barberId) return;
-    setIsLoading(true);
-    const barberServices = await getServicesForBarber(barberId);
-    setServices(barberServices);
-    // Set a default service if available
-    if (barberServices.length > 0) {
-        form.setValue("service", barberServices[0].name);
-        form.setValue("price", barberServices[0].price);
-    }
-    setIsLoading(false);
-  }, [form]);
+  const selectedService = services.find(s => s.name === form.watch("serviceName"));
   
+  // Fetch services when a barber is selected
   useEffect(() => {
-    if (selectedBarberId) {
-      fetchServices(selectedBarberId);
-    } else {
-      setServices([]);
-      form.setValue('service', '');
+    const fetchAndSetServices = async () => {
+      if (selectedBarberId) {
+        setIsLoading(true);
+        const barberServices = await getServicesForBarber(selectedBarberId);
+        setServices(barberServices);
+        setIsLoading(false);
+      } else {
+        setServices([]);
+      }
+      form.setValue('serviceName', '');
       form.setValue('price', 0);
-    }
-  }, [selectedBarberId, fetchServices, form]);
+      form.setValue('duration', 0);
+    };
+    fetchAndSetServices();
+  }, [selectedBarberId, form]);
 
-
+  // Fetch booked appointments when barber and date change
   useEffect(() => {
-    // Reset form with role-specific defaults whenever the dialog opens or user changes
+    const fetchBookedSlots = async () => {
+      if (selectedBarberId && selectedDate) {
+        setIsLoading(true);
+        const appointments = await getAppointmentsForBarberOnDate(selectedBarberId, selectedDate);
+        setBookedAppointments(appointments);
+        setIsLoading(false);
+      }
+    };
+    fetchBookedSlots();
+  }, [selectedBarberId, selectedDate]);
+  
+  // Generate available slots
+  useEffect(() => {
+    if (!selectedDate || !selectedService || !selectedBarberId) {
+      setAvailableSlots([]);
+      return;
+    }
+  
+    const barber = barbers.find(b => b.id === selectedBarberId);
+    const dayOfWeek = format(selectedDate, 'eeee').toLowerCase();
+    const workingHours = barber?.availability?.[dayOfWeek];
+    
+    if (!workingHours) {
+      setAvailableSlots([]);
+      return;
+    }
+
+    const serviceDuration = selectedService.duration;
+    const slots: Date[] = [];
+    const now = new Date();
+
+    const dayStart = parse(workingHours.start, 'HH:mm', selectedDate);
+    const dayEnd = parse(workingHours.end, 'HH:mm', selectedDate);
+
+    let currentTime = dayStart;
+
+    while (currentTime < dayEnd) {
+      const slotEnd = new Date(currentTime.getTime() + serviceDuration * 60000);
+      
+      if (slotEnd > dayEnd) break;
+
+      const isBooked = bookedAppointments.some(appt => {
+        const apptStart = new Date(appt.dateTime);
+        const apptEnd = new Date(apptStart.getTime() + (appt.duration || 30) * 60000);
+        return currentTime < apptEnd && slotEnd > apptStart;
+      });
+
+      if (!isBooked && currentTime > now) {
+        slots.push(new Date(currentTime));
+      }
+
+      currentTime = new Date(currentTime.getTime() + 15 * 60000); // Check every 15 mins for a slot start
+    }
+    setAvailableSlots(slots);
+  }, [bookedAppointments, selectedDate, selectedService, selectedBarberId, barbers]);
+
+
+  // Reset form when dialog opens
+  useEffect(() => {
     if (open && user) {
       form.reset({
         customerId: user.role === 'customer' ? user.uid : '',
         barberId: user.role === 'barber' ? user.uid : '',
-        service: '',
-        price: 0,
-        dateTime: new Date(new Date().getTime() + 60 * 60 * 1000).toISOString().substring(0, 16),
+        serviceName: '',
       });
+      setSelectedDate(new Date());
+      setAvailableSlots([]);
     }
   }, [open, user, form]);
 
+  // Fetch users when dialog opens
   useEffect(() => {
     if (open) {
       const fetchUsers = async () => {
         setIsLoading(true);
-        // Fetch both lists regardless of role for simplicity, then filter UI
         const [customerData, barberData] = await Promise.all([
             getCustomers(),
             getBarbers()
         ]);
-        setCustomers(customerData as User[]);
-        setBarbers(barberData as User[]);
+        setCustomers(customerData);
+        setBarbers(barberData);
         setIsLoading(false);
       };
       fetchUsers();
@@ -133,7 +186,10 @@ export function NewAppointmentDialog({ onSuccess }: NewAppointmentDialogProps) {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
-    const result = await addAppointment(values);
+    const result = await addAppointment({
+      ...values,
+      dateTime: values.dateTime.toISOString(),
+    });
     setIsLoading(false);
 
     if (result.error) {
@@ -150,16 +206,10 @@ export function NewAppointmentDialog({ onSuccess }: NewAppointmentDialogProps) {
       setOpen(false);
       onSuccess?.();
       triggerNotificationSound();
-      form.reset();
     }
   }
   
   if (!user) return null;
-
-  const serviceOptions = services.map(s => ({
-    value: s.name,
-    label: `${s.name} - PKR ${s.price.toLocaleString()}`
-  }));
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -169,7 +219,7 @@ export function NewAppointmentDialog({ onSuccess }: NewAppointmentDialogProps) {
           <span className="hidden sm:inline">New Appointment</span>
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Create New Appointment</DialogTitle>
           <DialogDescription>
@@ -179,142 +229,78 @@ export function NewAppointmentDialog({ onSuccess }: NewAppointmentDialogProps) {
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
             
-            {/* Customer Field Logic */}
-            {user.role === 'admin' && (
-               <FormField
-                control={form.control}
-                name="customerId"
-                render={({ field }) => (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Customer Field */}
+              <FormField
+                  control={form.control}
+                  name="customerId"
+                  render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Customer</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger disabled={isLoading}>
-                          <SelectValue placeholder="Select a customer" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {customers.map((customer) => (
-                          <SelectItem key={customer.id} value={customer.id}>
-                            {customer.displayName}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            )}
-            {user.role === 'barber' && (
-                <FormField
-                control={form.control}
-                name="customerId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Customer</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger disabled={isLoading}>
-                          <SelectValue placeholder="Select a customer" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {customers.map((customer) => (
-                          <SelectItem key={customer.id} value={customer.id}>
-                            {customer.displayName}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            )}
-            {user.role === 'customer' && (
-                <FormField
-                    control={form.control}
-                    name="customerId"
-                    render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Customer</FormLabel>
+                      <FormLabel>Customer</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value} disabled={user.role === 'customer' || isLoading}>
                         <FormControl>
-                            <Input {...field} value={user.displayName || ''} disabled />
+                            <SelectTrigger>
+                            <SelectValue placeholder="Select a customer" />
+                            </SelectTrigger>
                         </FormControl>
-                        <FormMessage />
-                    </FormItem>
-                    )}
+                        <SelectContent>
+                            {user.role === 'customer' ? (
+                                <SelectItem value={user.uid}>{user.displayName}</SelectItem>
+                            ) : (
+                                customers.map((c) => ( <SelectItem key={c.id} value={c.id}>{c.displayName}</SelectItem>))
+                            )}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                  </FormItem>
+                  )}
               />
-            )}
 
-            {/* Barber Field Logic */}
-            {(user.role === 'admin' || user.role === 'customer') && (
-                 <FormField
-                    control={form.control}
-                    name="barberId"
-                    render={({ field }) => (
-                        <FormItem>
-                        <FormLabel>Barber</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                            <SelectTrigger disabled={isLoading}>
+              {/* Barber Field */}
+               <FormField
+                  control={form.control}
+                  name="barberId"
+                  render={({ field }) => (
+                      <FormItem>
+                      <FormLabel>Barber</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value} disabled={user.role === 'barber' || isLoading}>
+                          <FormControl>
+                            <SelectTrigger>
                                 <SelectValue placeholder="Select a barber" />
                             </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                                {barbers.map((barber) => (
-                                    <SelectItem key={barber.id} value={barber.id}>
-                                    {barber.displayName}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                        <FormMessage />
-                        </FormItem>
-                    )}
-                />
-            )}
-            {user.role === 'barber' && (
-                 <FormField
-                    control={form.control}
-                    name="barberId"
-                    render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Barber</FormLabel>
-                        <FormControl>
-                            <Input {...field} value={user.displayName || ''} disabled />
-                        </FormControl>
-                        <FormMessage />
-                    </FormItem>
-                    )}
+                          </FormControl>
+                          <SelectContent>
+                            {user.role === 'barber' ? (
+                                <SelectItem value={user.uid}>{user.displayName}</SelectItem>
+                            ) : (
+                                barbers.map((b) => (<SelectItem key={b.id} value={b.id}>{b.displayName}</SelectItem>))
+                            )}
+                          </SelectContent>
+                      </Select>
+                      <FormMessage />
+                      </FormItem>
+                  )}
               />
-            )}
+            </div>
             
             <FormField
               control={form.control}
-              name="service"
+              name="serviceName"
               render={({ field }) => (
                 <FormItem className="flex flex-col">
-                  <div className="flex justify-between items-center">
-                    <FormLabel>Service</FormLabel>
-                    {selectedBarberId && (
-                      <Link href={`/barbers/${selectedBarberId}`} target="_blank" className="text-xs text-primary hover:underline">
-                        View all services
-                      </Link>
-                    )}
-                  </div>
+                  <FormLabel>Service</FormLabel>
                   <Combobox
-                    options={serviceOptions}
+                    options={services.map(s => ({ value: s.name, label: `${s.name} - ${s.duration} min` }))}
                     value={field.value}
                     onChange={(value) => {
-                      const selectedService = services.find(s => s.name === value);
-                      if (selectedService) {
+                      const selected = services.find(s => s.name === value);
+                      if (selected) {
                         field.onChange(value);
-                        form.setValue('price', selectedService.price);
+                        form.setValue('price', selected.price);
+                        form.setValue('duration', selected.duration);
                       }
                     }}
-                    placeholder={!selectedBarberId ? "First select a barber" : "Select a service"}
+                    placeholder={!selectedBarberId ? "Select a barber first" : "Select a service"}
                     searchPlaceholder="Search services..."
                     emptyText="No services found."
                     disabled={!selectedBarberId || services.length === 0 || isLoading}
@@ -323,24 +309,51 @@ export function NewAppointmentDialog({ onSuccess }: NewAppointmentDialogProps) {
                 </FormItem>
               )}
             />
-            <FormField
-              control={form.control}
-              name="dateTime"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Date & Time</FormLabel>
-                  <FormControl>
-                    <Input type="datetime-local" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-             {/* Hidden price field to submit with form */}
-             <FormField control={form.control} name="price" render={({ field }) => <Input type="hidden" {...field} />} />
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+               <FormField
+                  control={form.control}
+                  name="dateTime"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                        <FormLabel>Date</FormLabel>
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <FormControl>
+                                    <Button variant="outline" className="pl-3 text-left font-normal" disabled={!selectedService}>
+                                        {selectedDate ? format(selectedDate, "PPP") : <span>Pick a date</span>}
+                                    </Button>
+                                </FormControl>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar mode="single" selected={selectedDate} onSelect={setSelectedDate} initialFocus disabled={(date) => date < startOfDay(new Date())} />
+                            </PopoverContent>
+                        </Popover>
+                        <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <div className="space-y-2">
+                    <FormLabel>Available Slots</FormLabel>
+                    <div className="grid grid-cols-3 gap-2 max-h-36 overflow-y-auto pr-2">
+                      {isLoading && <Loader2 className="animate-spin h-5 w-5" />}
+                      {!isLoading && availableSlots.length > 0 ? availableSlots.map(slot => (
+                        <Button
+                          key={slot.toISOString()}
+                          variant={form.getValues("dateTime")?.getTime() === slot.getTime() ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => form.setValue("dateTime", slot, { shouldValidate: true })}
+                        >
+                          {format(slot, "p")}
+                        </Button>
+                      )) : !isLoading && <p className="text-xs text-muted-foreground col-span-3 text-center py-4">No available slots for this day. Please try another date or service.</p>}
+                    </div>
+                </div>
+            </div>
 
             <DialogFooter>
-              <Button type="submit" disabled={isLoading}>
+              <Button type="submit" disabled={isLoading || !form.formState.isValid}>
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Create Appointment
               </Button>
