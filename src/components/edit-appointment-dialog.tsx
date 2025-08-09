@@ -2,7 +2,7 @@
 // src/components/edit-appointment-dialog.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -37,7 +37,7 @@ import {
 } from "@/components/ui/select";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Loader2, Pencil } from "lucide-react";
-import { getCustomers, getBarbers, UserProfile, Appointment } from "@/lib/firebase/firestore";
+import { getCustomers, getBarbers, UserProfile, Appointment, getServicesForBarber, Service } from "@/lib/firebase/firestore";
 import { useNotification } from "@/hooks/use-notification";
 
 const formSchema = z.object({
@@ -54,16 +54,6 @@ interface User {
   displayName: string;
 }
 
-const services = [
-  { name: "Haircut", price: 1500 },
-  { name: "Beard Trim", price: 800 },
-  { name: "Haircut & Beard Trim", price: 2200 },
-  { name: "Shave", price: 1000 },
-  { name: "Kids Haircut", price: 1200 },
-  { name: "Fade", price: 1800 },
-  { name: "Hair Coloring", price: 3500 },
-];
-
 interface EditAppointmentDialogProps {
     appointment: Appointment;
     onSuccess: () => void;
@@ -77,6 +67,7 @@ export function EditAppointmentDialog({ appointment, onSuccess }: EditAppointmen
   const [isLoading, setIsLoading] = useState(false);
   const [customers, setCustomers] = useState<User[]>([]);
   const [barbers, setBarbers] = useState<User[]>([]);
+  const [services, setServices] = useState<Service[]>([]);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -90,6 +81,24 @@ export function EditAppointmentDialog({ appointment, onSuccess }: EditAppointmen
     },
   });
 
+  const selectedBarberId = form.watch("barberId");
+
+  const fetchServices = useCallback(async (barberId: string) => {
+    if (!barberId) {
+      setServices([]);
+      return;
+    };
+    const fetchedServices = await getServicesForBarber(barberId);
+    setServices(fetchedServices);
+  }, []);
+
+  useEffect(() => {
+    if (selectedBarberId) {
+      fetchServices(selectedBarberId);
+    }
+  }, [selectedBarberId, fetchServices]);
+
+
   useEffect(() => {
     if (open) {
       const fetchUsers = async () => {
@@ -100,11 +109,14 @@ export function EditAppointmentDialog({ appointment, onSuccess }: EditAppointmen
         ]);
         setCustomers(customerData as User[]);
         setBarbers(barberData as User[]);
+        if (appointment.barberId) {
+            await fetchServices(appointment.barberId);
+        }
         setIsLoading(false);
       };
       fetchUsers();
     }
-  }, [open]);
+  }, [open, appointment.barberId, fetchServices]);
 
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
@@ -178,7 +190,11 @@ export function EditAppointmentDialog({ appointment, onSuccess }: EditAppointmen
               render={({ field }) => (
                   <FormItem>
                   <FormLabel>Barber</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select onValueChange={(value) => {
+                      field.onChange(value);
+                      form.setValue('service', '');
+                      form.setValue('price', 0);
+                  }} defaultValue={field.value}>
                       <FormControl>
                       <SelectTrigger disabled={isLoading}>
                           <SelectValue placeholder="Select a barber" />
@@ -211,6 +227,7 @@ export function EditAppointmentDialog({ appointment, onSuccess }: EditAppointmen
                         }
                       }} 
                       defaultValue={field.value}
+                      disabled={!selectedBarberId || services.length === 0}
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -219,7 +236,7 @@ export function EditAppointmentDialog({ appointment, onSuccess }: EditAppointmen
                       </FormControl>
                       <SelectContent>
                         {services.map((service) => (
-                          <SelectItem key={service.name} value={service.name}>
+                          <SelectItem key={service.id} value={service.name}>
                             {service.name} - PKR {service.price.toLocaleString()}
                           </SelectItem>
                         ))}

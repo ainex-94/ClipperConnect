@@ -2,7 +2,7 @@
 // src/components/new-appointment-dialog.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -36,7 +36,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PlusCircle, Loader2 } from "lucide-react";
-import { getCustomers, getBarbers, UserProfile } from "@/lib/firebase/firestore";
+import { getCustomers, getBarbers, UserProfile, getServicesForBarber, Service } from "@/lib/firebase/firestore";
 import { useNotification } from "@/hooks/use-notification";
 
 const formSchema = z.object({
@@ -52,16 +52,6 @@ interface User {
   displayName: string;
 }
 
-const services = [
-  { name: "Haircut", price: 1500 },
-  { name: "Beard Trim", price: 800 },
-  { name: "Haircut & Beard Trim", price: 2200 },
-  { name: "Shave", price: 1000 },
-  { name: "Kids Haircut", price: 1200 },
-  { name: "Fade", price: 1800 },
-  { name: "Hair Coloring", price: 3500 },
-];
-
 interface NewAppointmentDialogProps {
   onSuccess?: () => void;
 }
@@ -74,6 +64,7 @@ export function NewAppointmentDialog({ onSuccess }: NewAppointmentDialogProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [customers, setCustomers] = useState<User[]>([]);
   const [barbers, setBarbers] = useState<User[]>([]);
+  const [services, setServices] = useState<Service[]>([]);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -82,15 +73,40 @@ export function NewAppointmentDialog({ onSuccess }: NewAppointmentDialogProps) {
     },
   });
 
+  const selectedBarberId = form.watch("barberId");
+
+  const fetchServices = useCallback(async (barberId: string) => {
+    if (!barberId) return;
+    setIsLoading(true);
+    const barberServices = await getServicesForBarber(barberId);
+    setServices(barberServices);
+    // Set a default service if available
+    if (barberServices.length > 0) {
+        form.setValue("service", barberServices[0].name);
+        form.setValue("price", barberServices[0].price);
+    }
+    setIsLoading(false);
+  }, [form]);
+  
+  useEffect(() => {
+    if (selectedBarberId) {
+      fetchServices(selectedBarberId);
+    } else {
+      setServices([]);
+      form.setValue('service', '');
+      form.setValue('price', 0);
+    }
+  }, [selectedBarberId, fetchServices, form]);
+
+
   useEffect(() => {
     // Reset form with role-specific defaults whenever the dialog opens or user changes
     if (open && user) {
-      const defaultService = services[0];
       form.reset({
         customerId: user.role === 'customer' ? user.uid : '',
         barberId: user.role === 'barber' ? user.uid : '',
-        service: defaultService.name,
-        price: defaultService.price,
+        service: '',
+        price: 0,
         dateTime: new Date(new Date().getTime() + 60 * 60 * 1000).toISOString().substring(0, 16),
       });
     }
@@ -284,15 +300,16 @@ export function NewAppointmentDialog({ onSuccess }: NewAppointmentDialogProps) {
                         }
                       }} 
                       defaultValue={field.value}
+                      disabled={!selectedBarberId || services.length === 0 || isLoading}
                     >
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select a service" />
+                          <SelectValue placeholder={!selectedBarberId ? "First select a barber" : "Select a service"} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
                         {services.map((service) => (
-                          <SelectItem key={service.name} value={service.name}>
+                          <SelectItem key={service.id} value={service.name}>
                             {service.name} - PKR {service.price.toLocaleString()}
                           </SelectItem>
                         ))}

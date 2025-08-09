@@ -6,8 +6,8 @@ import {
   type SuggestRescheduleOptionsInput,
 } from "@/ai/flows/suggest-reschedule-options";
 import { auth, db } from "@/lib/firebase/firebase";
-import { getDocument, getOrCreateChat as getOrCreateChatFirestore, UserProfile, Appointment, updateAverageRating, WalletTransaction, createNotificationInFirestore, removeWorker as removeWorkerFromFirestore, findAvailableWorker, getWorkersForBarber } from "@/lib/firebase/firestore";
-import { addDoc, collection, doc, getDoc, increment, serverTimestamp, setDoc, updateDoc, writeBatch, runTransaction, query, where, getDocs, orderBy } from "firebase/firestore";
+import { getDocument, getOrCreateChat as getOrCreateChatFirestore, UserProfile, Appointment, updateAverageRating, WalletTransaction, createNotificationInFirestore, removeWorker as removeWorkerFromFirestore, findAvailableWorker, getWorkersForBarber, Service } from "@/lib/firebase/firestore";
+import { addDoc, collection, doc, getDoc, increment, serverTimestamp, setDoc, updateDoc, writeBatch, runTransaction, query, where, getDocs, orderBy, deleteDoc } from "firebase/firestore";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import ImageKit from "imagekit";
@@ -1027,4 +1027,58 @@ export async function assignWorkerToAppointment(values: z.infer<typeof assignWor
         console.error("Assign worker error:", error);
         return { error: error.message || "Failed to assign worker." };
     }
+}
+
+// Service Management Actions
+const serviceSchema = z.object({
+  name: z.string().min(2, "Service name must be at least 2 characters."),
+  price: z.coerce.number().min(0, "Price cannot be negative."),
+  duration: z.coerce.number().int().positive("Duration must be a positive number."),
+  description: z.string().optional(),
+});
+
+export async function addService(values: z.infer<typeof serviceSchema> & { barberId: string }) {
+  const validatedFields = serviceSchema.safeParse(values);
+  if (!validatedFields.success) {
+    return { error: "Invalid fields: " + validatedFields.error.errors.map(e => e.message).join(', ') };
+  }
+
+  try {
+    await addDoc(collection(db, "services"), {
+      ...validatedFields.data,
+      barberId: values.barberId,
+    });
+    revalidatePath('/services');
+    return { success: "Service added successfully!" };
+  } catch (error: any) {
+    return { error: error.message || "Failed to add service." };
+  }
+}
+
+export async function updateService(values: z.infer<typeof serviceSchema> & { id: string }) {
+  const validatedFields = serviceSchema.safeParse(values);
+  if (!validatedFields.success) {
+    return { error: "Invalid fields: " + validatedFields.error.errors.map(e => e.message).join(', ') };
+  }
+  
+  const { id, ...serviceData } = values;
+  try {
+    const serviceRef = doc(db, "services", id);
+    await updateDoc(serviceRef, serviceData);
+    revalidatePath('/services');
+    return { success: "Service updated successfully!" };
+  } catch (error: any) {
+    return { error: error.message || "Failed to update service." };
+  }
+}
+
+export async function deleteService(id: string) {
+  try {
+    const serviceRef = doc(db, "services", id);
+    await deleteDoc(serviceRef);
+    revalidatePath('/services');
+    return { success: "Service deleted successfully!" };
+  } catch (error: any) {
+    return { error: error.message || "Failed to delete service." };
+  }
 }

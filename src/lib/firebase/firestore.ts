@@ -104,6 +104,16 @@ export interface Notification {
     href?: string;
 }
 
+export interface Service {
+    id: string;
+    barberId: string;
+    name: string;
+    price: number;
+    duration: number; // in minutes
+    description?: string;
+}
+
+
 // A helper function to safely stringify and parse complex objects, converting Timestamps to ISO strings.
 const safeJsonParse = (data: DocumentData) => {
     const replacer = (key: string, value: any) => {
@@ -136,7 +146,9 @@ export async function getCustomers() {
 }
 
 export async function getBarbers() {
-    return getUsersWithRole('barber');
+    const q = query(collection(db, "users"), where("role", "==", "barber"));
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => safeJsonParse({ id: doc.id, ...doc.data() })) as UserProfile[];
 }
 
 export async function getWorkersForBarber(shopOwnerId: string): Promise<UserProfile[]> {
@@ -452,4 +464,11 @@ export async function removeWorker(workerId: string) {
     console.error("Error removing worker:", error);
     return { error: error.message || "Failed to remove worker." };
   }
+}
+
+// SERVICE MANAGEMENT FUNCTIONS
+export async function getServicesForBarber(barberId: string): Promise<Service[]> {
+    const q = query(collection(db, "services"), where("barberId", "==", barberId), orderBy("name"));
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => safeJsonParse({ id: doc.id, ...doc.data() })) as Service[];
 }
