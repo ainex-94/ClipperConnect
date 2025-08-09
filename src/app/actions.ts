@@ -479,7 +479,7 @@ export async function payFromWallet(values: z.infer<typeof payFromWalletSchema>)
             transaction.update(customerRef, { walletBalance: increment(-price) });
             const customerTxRef = doc(collection(db, "users", appointment.customerId, "walletTransactions"));
             transaction.set(customerTxRef, {
-                amount: -price,
+                amount: price,
                 type: "Payment Sent",
                 description: `Payment for service: ${appointment.service} to ${appointment.barberName}`,
                 timestamp: serverTimestamp()
@@ -508,12 +508,12 @@ export async function payFromWallet(values: z.infer<typeof payFromWalletSchema>)
             transaction.update(barberRef, { coins: increment(barberCoins) });
 
             // 5. Create notifications
-            await createNotification(appointment.customerId, {
+            await createNotificationInFirestore(appointment.customerId, {
                 title: "Payment Successful",
                 description: `You paid PKR ${price} to ${appointment.barberName} from your wallet.`,
                 href: "/wallet"
             });
-            await createNotification(appointment.barberId, {
+            await createNotificationInFirestore(appointment.barberId, {
                 title: "Payment Received",
                 description: `You received PKR ${price} from ${appointment.customerName} in your wallet.`,
                 href: "/wallet"

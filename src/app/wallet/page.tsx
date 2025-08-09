@@ -1,7 +1,7 @@
 // src/app/wallet/page.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -27,7 +27,7 @@ export default function WalletPage() {
   const coins = user?.coins || 0;
   const coinValuePKR = (coins / 1000) * 5;
 
-  const fetchTransactions = async () => {
+  const fetchTransactions = useCallback(async () => {
     if (user) {
       setLoading(true);
       const result = await getWalletTransactions(user.uid);
@@ -40,13 +40,17 @@ export default function WalletPage() {
     } else {
       setLoading(false);
     }
-  };
+  }, [user, toast]);
 
   useEffect(() => {
     if (!authLoading) {
-      fetchTransactions();
+      if(user) {
+        fetchTransactions();
+      } else {
+        setLoading(false);
+      }
     }
-  }, [user, authLoading]);
+  }, [user, authLoading, fetchTransactions]);
 
   const handleTopUp = async () => {
     const amount = parseInt(topUpAmount, 10);
@@ -91,10 +95,28 @@ export default function WalletPage() {
       header: 'Type',
       cell: ({ row }) => {
         const type = row.original.type;
-        const Icon = type === 'Top-up' ? PlusCircle : type === 'Payment Sent' ? XCircle : CheckCircle;
-        const color = type === 'Top-up' ? 'text-blue-500' : type === 'Payment Sent' ? 'text-red-500' : 'text-green-500';
+        let Icon, color;
+        
+        switch(type) {
+            case 'Top-up':
+                Icon = PlusCircle;
+                color = 'text-blue-500';
+                break;
+            case 'Payment Sent':
+                Icon = ArrowRight;
+                color = 'text-red-500';
+                break;
+            case 'Payment Received':
+                Icon = CheckCircle;
+                color = 'text-green-500';
+                break;
+            default:
+                Icon = WalletIcon;
+                color = 'text-muted-foreground';
+        }
+
         return (
-          <Badge variant={type === 'Top-up' ? 'secondary' : type === 'Payment Sent' ? 'destructive' : 'default'} className="capitalize flex items-center gap-2">
+          <Badge variant={type === 'Payment Sent' ? 'destructive' : 'secondary'} className="capitalize flex items-center gap-2">
             <Icon className={`h-4 w-4 ${color}`} />
             {type}
           </Badge>
@@ -104,7 +126,13 @@ export default function WalletPage() {
     {
       accessorKey: 'amount',
       header: 'Amount',
-      cell: ({ row }) => `PKR ${row.original.amount.toLocaleString()}`,
+      cell: ({ row }) => {
+        const amount = row.original.amount;
+        const type = row.original.type;
+        const prefix = type === 'Payment Sent' ? '-' : type === 'Payment Received' || type === 'Top-up' ? '+' : '';
+        const color = type === 'Payment Sent' ? 'text-red-500' : 'text-green-500';
+        return <span className={color}>{prefix}PKR {amount.toLocaleString()}</span>
+      },
     },
     {
       accessorKey: 'description',
