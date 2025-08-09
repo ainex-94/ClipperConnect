@@ -28,6 +28,10 @@ const nextConfig: NextConfig = {
       {
         protocol: 'https',
         hostname: 'ik.imagekit.io',
+      },
+      {
+        protocol: 'https',
+        hostname: 'play-lh.googleusercontent.com',
       }
     ],
   },
