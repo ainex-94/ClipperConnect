@@ -6,7 +6,7 @@ import {
   type SuggestRescheduleOptionsInput,
 } from "@/ai/flows/suggest-reschedule-options";
 import { auth, db } from "@/lib/firebase/firebase";
-import { getDocument, getOrCreateChat as getOrCreateChatFirestore, UserProfile, Appointment, updateAverageRating, WalletTransaction, createNotificationInFirestore, removeWorker as removeWorkerFromFirestore } from "@/lib/firebase/firestore";
+import { getDocument, getOrCreateChat as getOrCreateChatFirestore, UserProfile, Appointment, updateAverageRating, WalletTransaction, createNotificationInFirestore, removeWorker as removeWorkerFromFirestore, findAvailableWorker, getWorkersForBarber } from "@/lib/firebase/firestore";
 import { addDoc, collection, doc, getDoc, increment, serverTimestamp, setDoc, updateDoc, writeBatch, runTransaction, query, where, getDocs, orderBy } from "firebase/firestore";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -106,38 +106,57 @@ export async function addAppointment(values: z.infer<typeof appointmentFormSchem
     const { customerId, barberId, service, dateTime, price } = validatedFields.data;
     
     const customerDoc = await getDocument("users", customerId);
-    const barberDoc = await getDocument("users", barberId);
+    const barberDoc = await getDocument("users", barberId) as UserProfile;
 
     if (!customerDoc || !barberDoc) {
         return { error: "Invalid customer or barber selected." };
     }
-
-    const customerName = customerDoc.displayName;
-    const customerPhotoURL = customerDoc.photoURL;
-    const barberName = barberDoc.displayName;
-    const barberPhotoURL = barberDoc.photoURL;
-
+    
+    let assignedWorkerId: string | null = null;
+    let assignedWorkerName: string | null = null;
+    
+    // Auto-assign worker if the selected barber is a shop owner
+    if (barberDoc.role === 'barber' && !barberDoc.shopOwnerId) {
+        const availableWorker = await findAvailableWorker(barberId);
+        if (availableWorker) {
+            assignedWorkerId = availableWorker.id;
+            assignedWorkerName = availableWorker.displayName;
+        }
+    }
 
     try {
-        const newAppointmentRef = await addDoc(collection(db, "appointments"), {
+        const appointmentData: any = {
             ...validatedFields.data,
-            customerName,
-            customerPhotoURL,
-            barberName,
-            barberPhotoURL,
+            customerName: customerDoc.displayName,
+            customerPhotoURL: customerDoc.photoURL,
+            barberName: barberDoc.displayName,
+            barberPhotoURL: barberDoc.photoURL,
             status: 'Confirmed',
             paymentStatus: 'Unpaid'
-        });
+        };
+
+        if (assignedWorkerId && assignedWorkerName) {
+            appointmentData.assignedWorkerId = assignedWorkerId;
+            appointmentData.assignedWorkerName = assignedWorkerName;
+        }
+
+        const newAppointmentRef = await addDoc(collection(db, "appointments"), appointmentData);
+        
+        // If worker was assigned, update their status
+        if (assignedWorkerId) {
+            const workerRef = doc(db, "users", assignedWorkerId);
+            await updateDoc(workerRef, { workerStatus: 'Busy' });
+        }
         
         // Create notifications for both users
         await createNotification(customerId, {
             title: "Appointment Confirmed!",
-            description: `Your appointment with ${barberName} for a ${service} has been confirmed.`,
+            description: `Your appointment with ${barberDoc.displayName} for a ${service} has been confirmed.`,
             href: `/appointments`,
         });
         await createNotification(barberId, {
             title: "New Appointment Booked!",
-            description: `You have a new appointment with ${customerName} for a ${service}.`,
+            description: `You have a new appointment with ${customerDoc.displayName} for a ${service}.`,
             href: `/appointments`,
         });
 
@@ -147,6 +166,7 @@ export async function addAppointment(values: z.infer<typeof appointmentFormSchem
         revalidatePath('/'); // For dashboard
         revalidatePath('/chat');
         revalidatePath('/billing');
+        revalidatePath('/workers');
         return { success: "Appointment created successfully!" };
     } catch (error) {
         console.error("Firestore Error:", error);
@@ -295,8 +315,21 @@ export async function updateAppointmentStatus(values: z.infer<typeof updateAppoi
     try {
         const appointmentRef = doc(db, "appointments", values.appointmentId);
         await updateDoc(appointmentRef, { status: values.status });
+
+        // If completed, free up the worker
+        if (values.status === 'Completed') {
+            const appSnapshot = await getDoc(appointmentRef);
+            if (appSnapshot.exists()) {
+                const appointment = appSnapshot.data() as Appointment;
+                if (appointment.assignedWorkerId) {
+                    const workerRef = doc(db, "users", appointment.assignedWorkerId);
+                    await updateDoc(workerRef, { workerStatus: 'Available' });
+                }
+            }
+        }
         
         revalidatePath('/appointments');
+        revalidatePath('/workers');
         return { success: `Appointment status updated to ${values.status}!` };
 
     } catch (error) {
@@ -337,6 +370,12 @@ export async function recordPayment(values: z.infer<typeof recordPaymentSchema>)
             paymentMethod: values.paymentMethod,
         });
 
+        // Free up worker if payment marks completion
+        if (appointment.assignedWorkerId) {
+            const workerRef = doc(db, "users", appointment.assignedWorkerId);
+            await updateDoc(workerRef, { workerStatus: 'Available' });
+        }
+
         // Award coins
         const customerRef = doc(db, "users", appointment.customerId);
         const barberRef = doc(db, "users", appointment.barberId);
@@ -363,6 +402,7 @@ export async function recordPayment(values: z.infer<typeof recordPaymentSchema>)
         revalidatePath('/appointments');
         revalidatePath('/billing');
         revalidatePath('/'); // For dashboard coin display
+        revalidatePath('/workers');
         return { success: `Payment of ${values.amountPaid} recorded successfully! ${customerCoins} coins awarded to customer, ${barberCoins} to barber.` };
 
     } catch (error) {
@@ -530,14 +570,20 @@ export async function payFromWallet(values: z.infer<typeof payFromWalletSchema>)
                 amountPaid: price,
                 paymentMethod: 'Wallet',
             });
+
+            // 4. Free up worker if there was one
+            if (appointment.assignedWorkerId) {
+                const workerRef = doc(db, "users", appointment.assignedWorkerId);
+                transaction.update(workerRef, { workerStatus: 'Available' });
+            }
             
-            // 4. Award coins
+            // 5. Award coins
             const customerCoins = Math.floor(price / 100) * 100;
             const barberCoins = Math.floor(price / 100) * 50;
             transaction.update(customerRef, { coins: increment(customerCoins) });
             transaction.update(barberRef, { coins: increment(barberCoins) });
 
-            // 5. Create notifications
+            // 6. Create notifications
             await createNotificationInFirestore(appointment.customerId, {
                 title: "Payment Successful",
                 description: `You paid PKR ${price} to ${appointment.barberName} from your wallet.`,
@@ -554,6 +600,7 @@ export async function payFromWallet(values: z.infer<typeof payFromWalletSchema>)
         revalidatePath('/billing');
         revalidatePath('/wallet');
         revalidatePath('/');
+        revalidatePath('/workers');
         return { success: "Payment successful!" };
     } catch (error: any) {
         console.error("Payment Error:", error);
@@ -589,14 +636,20 @@ export async function recordGatewayPayment(values: z.infer<typeof recordGatewayP
                 amountPaid: price,
                 paymentMethod: paymentMethod,
             });
+
+            // 2. Free up worker if there was one
+            if (appointment.assignedWorkerId) {
+                const workerRef = doc(db, "users", appointment.assignedWorkerId);
+                transaction.update(workerRef, { workerStatus: 'Available' });
+            }
             
-            // 2. Award coins
+            // 3. Award coins
             const customerCoins = Math.floor(price / 100) * 100;
             const barberCoins = Math.floor(price / 100) * 50;
             transaction.update(customerRef, { coins: increment(customerCoins) });
             transaction.update(barberRef, { coins: increment(barberCoins) });
             
-            // 3. Create notifications
+            // 4. Create notifications
             await createNotificationInFirestore(appointment.customerId, {
                 title: "Payment Successful",
                 description: `Your payment of PKR ${price} via ${paymentMethod} was successful.`,
@@ -612,6 +665,7 @@ export async function recordGatewayPayment(values: z.infer<typeof recordGatewayP
         revalidatePath('/appointments');
         revalidatePath('/billing');
         revalidatePath('/');
+        revalidatePath('/workers');
         return { success: "Payment successful!" };
     } catch (error: any) {
         console.error("Gateway Payment Error:", error);
@@ -885,6 +939,7 @@ export async function addWorker(values: z.infer<typeof addWorkerSchema>) {
         accountStatus: 'Approved', // Workers are approved by default
         specialty: specialty || 'All-rounder',
         shopOwnerId: shopOwnerId,
+        workerStatus: 'Available',
         coins: 0,
         walletBalance: 0,
         rating: 0,
@@ -911,4 +966,57 @@ export async function addWorker(values: z.infer<typeof addWorkerSchema>) {
 
 export async function removeWorker(workerId: string) {
     return removeWorkerFromFirestore(workerId);
+}
+
+const assignWorkerSchema = z.object({
+    appointmentId: z.string().min(1),
+    newWorkerId: z.string().min(1),
+});
+
+export async function assignWorkerToAppointment(values: z.infer<typeof assignWorkerSchema>) {
+    const validatedFields = assignWorkerSchema.safeParse(values);
+    if (!validatedFields.success) {
+        return { error: "Invalid fields: " + validatedFields.error.errors.map(e => e.message).join(', ') };
+    }
+    const { appointmentId, newWorkerId } = validatedFields.data;
+
+    try {
+        await runTransaction(db, async (transaction) => {
+            const appointmentRef = doc(db, "appointments", appointmentId);
+            const newWorkerRef = doc(db, "users", newWorkerId);
+            
+            const [appointmentDoc, newWorkerDoc] = await Promise.all([
+                transaction.get(appointmentRef),
+                transaction.get(newWorkerRef)
+            ]);
+
+            if (!appointmentDoc.exists()) throw new Error("Appointment not found.");
+            if (!newWorkerDoc.exists()) throw new Error("Worker not found.");
+
+            const appointment = appointmentDoc.data() as Appointment;
+            const newWorker = newWorkerDoc.data() as UserProfile;
+            
+            // Free up the old worker if there was one
+            if (appointment.assignedWorkerId) {
+                const oldWorkerRef = doc(db, "users", appointment.assignedWorkerId);
+                transaction.update(oldWorkerRef, { workerStatus: 'Available' });
+            }
+
+            // Assign the new worker
+            transaction.update(appointmentRef, {
+                assignedWorkerId: newWorkerId,
+                assignedWorkerName: newWorker.displayName
+            });
+
+            // Set new worker status to Busy
+            transaction.update(newWorkerRef, { workerStatus: 'Busy' });
+        });
+
+        revalidatePath('/appointments');
+        revalidatePath('/workers');
+        return { success: "Worker assigned successfully." };
+    } catch (error: any) {
+        console.error("Assign worker error:", error);
+        return { error: error.message || "Failed to assign worker." };
+    }
 }

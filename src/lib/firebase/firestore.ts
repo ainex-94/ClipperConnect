@@ -36,6 +36,7 @@ export interface UserProfile {
         lastSeen: string;
     },
     shopOwnerId?: string; // ID of the barber who owns the shop
+    workerStatus?: 'Available' | 'Busy';
 }
 
 export interface Message {
@@ -82,6 +83,8 @@ export interface Appointment {
   customerRating?: number;
   reviewText?: string;
   paymentMethod?: 'Cash' | 'Wallet' | 'JazzCash' | 'EasyPaisa';
+  assignedWorkerId?: string;
+  assignedWorkerName?: string;
 }
 
 export interface WalletTransaction {
@@ -141,6 +144,20 @@ export async function getWorkersForBarber(shopOwnerId: string): Promise<UserProf
     const q = query(collection(db, "users"), where("role", "==", "barber"), where("shopOwnerId", "==", shopOwnerId));
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(doc => safeJsonParse({ id: doc.id, ...doc.data() }));
+}
+
+export async function findAvailableWorker(shopOwnerId: string): Promise<UserProfile | null> {
+    const q = query(
+        collection(db, "users"), 
+        where("shopOwnerId", "==", shopOwnerId),
+        where("workerStatus", "==", "Available"),
+        limit(1)
+    );
+    const querySnapshot = await getDocs(q);
+    if (!querySnapshot.empty) {
+        return safeJsonParse({ id: querySnapshot.docs[0].id, ...querySnapshot.docs[0].data() }) as UserProfile;
+    }
+    return null;
 }
 
 

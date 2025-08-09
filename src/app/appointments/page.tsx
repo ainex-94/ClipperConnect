@@ -6,7 +6,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getAppointmentsForUser, Appointment, getAllAppointments } from "@/lib/firebase/firestore";
-import { MoreHorizontal, Loader2, Wallet, CheckCircle, CreditCard } from "lucide-react";
+import { MoreHorizontal, Loader2, Wallet, CheckCircle, CreditCard, UserCheck } from "lucide-react";
 import { format } from 'date-fns';
 import { NewAppointmentDialog } from "@/components/new-appointment-dialog";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,7 @@ import { useNotification } from "@/hooks/use-notification";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { PaymentOptionsDialog } from "@/components/payment-options-dialog";
+import { AssignWorkerDialog } from "@/components/assign-worker-dialog";
 
 type FilterType = "service" | "appointmentStatus" | "paymentStatus";
 const appointmentStatuses: Appointment['status'][] = ['Confirmed', 'Completed', 'Cancelled', 'Pending'];
@@ -117,7 +118,12 @@ export default function AppointmentsPage() {
   
   const columns: ColumnDef<Appointment>[] = [
     { accessorKey: "customerName", header: "Customer" },
-    { accessorKey: "barberName", header: "Barber" },
+    { accessorKey: "barberName", header: "Shop" },
+    { 
+      accessorKey: "assignedWorkerName", 
+      header: "Assigned To",
+      cell: ({ row }) => row.original.assignedWorkerName || <span className="text-muted-foreground">N/A</span>
+    },
     { accessorKey: "service", header: "Service" },
     {
       accessorKey: "dateTime",
@@ -156,6 +162,7 @@ export default function AppointmentsPage() {
 
         const otherUserId = user.uid === appointment.barberId ? appointment.customerId : appointment.barberId;
         const isBarber = user.role === 'barber';
+        const isShopOwner = isBarber && !user.shopOwnerId;
         const isCustomer = user.role === 'customer';
         const isAdmin = user.role === 'admin';
         const canPay = isCustomer && appointment.status === 'Completed' && appointment.paymentStatus !== 'Paid';
@@ -177,6 +184,10 @@ export default function AppointmentsPage() {
                 </DropdownMenuItem>
                 {(isAdmin || isBarber) && (
                   <EditAppointmentDialog appointment={appointment} onSuccess={fetchAppointments} />
+                )}
+                
+                {isShopOwner && (
+                   <AssignWorkerDialog appointment={appointment} shopOwnerId={user.uid} onSuccess={fetchAppointments} />
                 )}
                 
                 {isBarber && (

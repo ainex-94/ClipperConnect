@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { removeWorker } from "../actions";
+import { Badge } from "@/components/ui/badge";
 
 export default function WorkersPage() {
     const { user } = useAuth();
@@ -103,6 +104,14 @@ export default function WorkersPage() {
         accessorKey: 'specialty',
         header: 'Specialty',
         cell: ({ row }) => row.original.specialty || 'N/A'
+      },
+      {
+        accessorKey: 'workerStatus',
+        header: 'Status',
+        cell: ({ row }) => {
+            const status = row.original.workerStatus || 'Available';
+            return <Badge variant={status === 'Busy' ? 'destructive' : 'default'}>{status}</Badge>;
+        }
       },
       {
         id: "actions",
