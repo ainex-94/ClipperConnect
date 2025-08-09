@@ -1,4 +1,3 @@
-
 // src/components/chat/chat-window.tsx
 "use client";
 
@@ -29,6 +28,7 @@ export function ChatWindow({ chat, isMobile, onBack }: ChatWindowProps) {
   const [newMessage, setNewMessage] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const otherParticipant = chat?.participants.find(p => p.id !== user?.uid);
   const otherUserIsTyping = chat?.typing?.[otherParticipant?.id || ""] || false;
@@ -38,6 +38,10 @@ export function ChatWindow({ chat, isMobile, onBack }: ChatWindowProps) {
         updateUserTypingStatus({ chatId: chat.id, userId: user.uid, isTyping: false });
     }
   }, 2000);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
 
   useEffect(() => {
     if (chat && user) {
@@ -77,14 +81,9 @@ export function ChatWindow({ chat, isMobile, onBack }: ChatWindowProps) {
 
 
   useEffect(() => {
-    // Scroll to bottom when new messages arrive
-    if (scrollAreaRef.current) {
-        scrollAreaRef.current.scrollTo({
-            top: scrollAreaRef.current.scrollHeight,
-            behavior: "smooth"
-        });
-    }
-  }, [messages]);
+    // Scroll to bottom when new messages arrive or typing indicator appears/disappears
+    scrollToBottom();
+  }, [messages, otherUserIsTyping]);
   
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -146,7 +145,7 @@ export function ChatWindow({ chat, isMobile, onBack }: ChatWindowProps) {
         </div>
       </header>
       
-      <ScrollArea className="flex-1" ref={scrollAreaRef}>
+      <ScrollArea className="flex-1">
           <div className="p-4 space-y-2">
             {messages.map((msg, index) => (
             <div
@@ -178,6 +177,22 @@ export function ChatWindow({ chat, isMobile, onBack }: ChatWindowProps) {
                 )}
             </div>
             ))}
+            {otherUserIsTyping && (
+                <div className="flex items-end gap-2 max-w-lg md:max-w-xl justify-start">
+                     <Avatar className="h-8 w-8 self-start">
+                        <AvatarImage data-ai-hint="person portrait" src={otherParticipant?.photoURL} />
+                        <AvatarFallback>{otherParticipant?.displayName?.[0]}</AvatarFallback>
+                    </Avatar>
+                     <div className="rounded-xl p-3 px-4 shadow-sm bg-muted text-foreground rounded-bl-none">
+                        <div className="flex items-center gap-1.5 animate-pulse">
+                            <span className="h-2 w-2 rounded-full bg-current/50"></span>
+                            <span className="h-2 w-2 rounded-full bg-current/50 animation-delay-200"></span>
+                            <span className="h-2 w-2 rounded-full bg-current/50 animation-delay-400"></span>
+                        </div>
+                    </div>
+                </div>
+            )}
+            <div ref={messagesEndRef} />
          </div>
       </ScrollArea>
 

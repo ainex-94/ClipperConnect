@@ -24,6 +24,8 @@ export function ChatList({ chats, selectedChat, onChatSelect }: ChatListProps) {
         {chats.length > 0 ? (
           chats.map((chat) => {
             const otherParticipant = chat.participants.find(p => p.id !== user.uid);
+            const otherUserIsTyping = chat?.typing?.[otherParticipant?.id || ""] || false;
+
             return (
               <button
                 key={chat.id}
@@ -39,9 +41,15 @@ export function ChatList({ chats, selectedChat, onChatSelect }: ChatListProps) {
                 </Avatar>
                 <div className="flex-1 truncate">
                   <div className="font-semibold">{otherParticipant?.displayName}</div>
-                  <p className="text-sm text-muted-foreground truncate">
-                    {chat.lastMessage?.text || "No messages yet"}
-                  </p>
+                  {otherUserIsTyping ? (
+                     <p className="text-sm text-primary truncate animate-pulse">
+                        typing...
+                    </p>
+                  ) : (
+                    <p className="text-sm text-muted-foreground truncate">
+                      {chat.lastMessage?.text || "No messages yet"}
+                    </p>
+                  )}
                 </div>
               </button>
             );
