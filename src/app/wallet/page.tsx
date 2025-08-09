@@ -23,7 +23,6 @@ export default function WalletPage() {
   const [loading, setLoading] = useState(true);
   const [topUpAmount, setTopUpAmount] = useState('');
   const [isToppingUp, setIsToppingUp] = useState(false);
-  const [showFullBalance, setShowFullBalance] = useState(false);
 
   const coins = user?.coins || 0;
   const coinValuePKR = (coins / 1000) * 5;
@@ -90,16 +89,6 @@ export default function WalletPage() {
     );
   }
 
-  const formatLargeNumber = (num: number): string => {
-    if (num >= 1000000) {
-      return (num / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
-    }
-    if (num >= 1000) {
-      return (num / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
-    }
-    return num.toLocaleString();
-  };
-
   const walletBalance = user.walletBalance || 0;
 
   const columns: ColumnDef<WalletTransaction>[] = [
@@ -145,8 +134,11 @@ export default function WalletPage() {
       header: 'Amount',
       cell: ({ row }) => {
         const amount = row.original.amount;
-        const color = amount < 0 ? 'text-red-500' : 'text-green-500';
-        return <span className={color}>{`PKR ${amount.toLocaleString()}`}</span>
+        const isNegative = row.original.type === 'Payment Sent';
+        const color = isNegative ? 'text-red-500' : 'text-green-500';
+        // Ensure the amount is displayed correctly (e.g., negative for sent payments)
+        const displayAmount = isNegative && amount > 0 ? -amount : amount;
+        return <span className={color}>{`PKR ${displayAmount.toLocaleString()}`}</span>
       },
     },
     {
@@ -169,13 +161,9 @@ export default function WalletPage() {
             <WalletIcon className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-             <button
-                onClick={() => setShowFullBalance(!showFullBalance)}
-                className="text-2xl font-bold text-left w-full hover:opacity-80 transition-opacity"
-                aria-label="Toggle full balance view"
-            >
-                PKR {showFullBalance ? walletBalance.toLocaleString() : formatLargeNumber(walletBalance)}
-            </button>
+             <div className="text-2xl font-bold">
+                PKR {walletBalance.toLocaleString()}
+            </div>
             <p className="text-xs text-muted-foreground">Your available funds</p>
           </CardContent>
         </Card>
