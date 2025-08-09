@@ -55,25 +55,31 @@ export function InvoiceDialog({ appointment }: InvoiceDialogProps) {
                 </DialogDescription>
             </DialogHeader>
             <Separator className="my-4" />
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                     <h3 className="font-semibold">Bill To</h3>
-                    <p>{appointment.customerName}</p>
+                    <p className="text-muted-foreground">{appointment.customerName}</p>
                 </div>
                 <div className="text-right">
                     <h3 className="font-semibold">From</h3>
-                    <p>{appointment.barberName}</p>
+                    <p className="text-muted-foreground">{appointment.barberName}</p>
                 </div>
                 <div>
                     <h3 className="font-semibold">Date Issued</h3>
-                    <p>{format(new Date(appointment.dateTime), 'PPP')}</p>
+                    <p className="text-muted-foreground">{format(new Date(appointment.dateTime), 'PPP')}</p>
                 </div>
                 <div className="text-right">
                     <h3 className="font-semibold">Payment Status</h3>
-                    <Badge variant={getPaymentStatusVariant(appointment.paymentStatus)}>
+                     <Badge variant={getPaymentStatusVariant(appointment.paymentStatus)} className="mt-1">
                       {appointment.paymentStatus || 'N/A'}
                     </Badge>
                 </div>
+                 {appointment.paymentMethod && (
+                    <div className="col-span-2 text-right">
+                        <h3 className="font-semibold">Payment Method</h3>
+                        <p className="text-muted-foreground">{appointment.paymentMethod}</p>
+                    </div>
+                 )}
             </div>
             <Separator className="my-4" />
             <Table>
@@ -92,17 +98,17 @@ export function InvoiceDialog({ appointment }: InvoiceDialogProps) {
             </Table>
             <Separator className="my-4" />
             <div className="flex justify-end">
-                <div className="grid gap-2 text-right">
-                    <div className="flex justify-between items-center gap-4">
-                        <span className="font-semibold">Subtotal:</span>
+                <div className="w-full max-w-xs space-y-2 text-sm">
+                    <div className="flex justify-between items-center">
+                        <span className="text-muted-foreground">Subtotal:</span>
                         <span>PKR {appointment.price?.toLocaleString()}</span>
                     </div>
-                    <div className="flex justify-between items-center gap-4">
-                        <span className="font-semibold">Amount Paid:</span>
+                    <div className="flex justify-between items-center">
+                        <span className="text-muted-foreground">Amount Paid:</span>
                         <span>PKR {appointment.amountPaid?.toLocaleString() || '0'}</span>
                     </div>
-                     <div className="flex justify-between items-center gap-4 text-lg font-bold border-t pt-2 mt-2">
-                        <span className="font-semibold">Total Due:</span>
+                     <div className="flex justify-between items-center text-lg font-bold border-t pt-2 mt-2">
+                        <span>Total Due:</span>
                         <span>
                             PKR {(appointment.paymentStatus === 'Paid' ? 0 : appointment.price || 0).toLocaleString()}
                         </span>
