@@ -31,6 +31,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Button } from "../ui/button";
 import { useNotification } from "@/hooks/use-notification";
 import { Badge } from "../ui/badge";
+import { UserPresenceIndicator } from "../user-presence-indicator";
 
 const allMenuItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard, roles: ['admin', 'barber', 'customer'] },
@@ -92,7 +93,10 @@ export default function AppSidebar() {
               <AvatarFallback>{user.displayName?.charAt(0) || 'U'}</AvatarFallback>
             </Avatar>
             <div className="flex-1">
-              <p className="text-sm font-semibold">{user.displayName || "User"}</p>
+              <div className="flex items-center gap-2">
+                 <p className="text-sm font-semibold">{user.displayName || "User"}</p>
+                 <UserPresenceIndicator presence={user.presence} />
+              </div>
               <p className="text-xs text-muted-foreground">{user.email}</p>
             </div>
             <button onClick={logout} className="text-muted-foreground hover:text-foreground">
