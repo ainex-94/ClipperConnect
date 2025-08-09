@@ -47,7 +47,7 @@ const allMenuItems = [
 export default function AppSidebar() {
   const pathname = usePathname();
   const { user, logout } = useAuth();
-  const { unreadCount } = useNotification();
+  const { unreadChatCount } = useNotification();
 
   const menuItems = allMenuItems.filter(item => user && item.roles.includes(user.role));
 
@@ -75,8 +75,8 @@ export default function AppSidebar() {
                         <item.icon className="h-4 w-4" />
                         <span>{item.label}</span>
                     </div>
-                     {item.notificationKey === 'chat' && unreadCount > 0 && (
-                        <Badge className="h-5 w-5 p-0 flex items-center justify-center">{unreadCount}</Badge>
+                     {item.notificationKey === 'chat' && unreadChatCount > 0 && (
+                        <Badge className="h-5 w-5 p-0 flex items-center justify-center">{unreadChatCount}</Badge>
                     )}
                 </Link>
               </SidebarMenuButton>

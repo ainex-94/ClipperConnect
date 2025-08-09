@@ -20,6 +20,7 @@ import { markAllNotificationsAsRead as markAllAsReadAction, markNotificationAsRe
 interface NotificationContextType {
   notifications: Notification[];
   unreadCount: number;
+  unreadChatCount: number;
   loadingNotifications: boolean;
   triggerNotificationSound: () => void;
   markAsRead: (notificationId: string) => Promise<void>;
@@ -34,6 +35,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   const [loadingNotifications, setLoadingNotifications] = useState(true);
   
   const unreadCount = useMemo(() => notifications.filter(n => !n.read).length, [notifications]);
+  const unreadChatCount = useMemo(() => notifications.filter(n => !n.read && n.href?.startsWith('/chat')).length, [notifications]);
 
   useEffect(() => {
     if (user) {
@@ -70,7 +72,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       setNotifications([]);
       setLoadingNotifications(false);
     }
-  }, [user]);
+  }, [user, notifications.length]);
 
   const notificationSound = useMemo(() => {
     if (typeof window !== "undefined") {
@@ -104,6 +106,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   const value = {
     notifications,
     unreadCount,
+    unreadChatCount,
     loadingNotifications,
     triggerNotificationSound,
     markAsRead,
