@@ -468,7 +468,10 @@ export async function removeWorker(workerId: string) {
 
 // SERVICE MANAGEMENT FUNCTIONS
 export async function getServicesForBarber(barberId: string): Promise<Service[]> {
-    const q = query(collection(db, "services"), where("barberId", "==", barberId), orderBy("name"));
+    const q = query(collection(db, "services"), where("barberId", "==", barberId));
     const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => safeJsonParse({ id: doc.id, ...doc.data() })) as Service[];
+    const services = querySnapshot.docs.map(doc => safeJsonParse({ id: doc.id, ...doc.data() })) as Service[];
+    // Sort by name client-side to avoid needing a composite index
+    services.sort((a, b) => a.name.localeCompare(b.name));
+    return services;
 }
