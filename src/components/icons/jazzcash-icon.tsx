@@ -6,7 +6,7 @@ import Image from "next/image";
 export const JazzcashIcon = ({ className }: { className?: string }) => {
     return (
         <Image
-            src="https://play-lh.googleusercontent.com/VttJV40yOO8i222Kx_2_65b_Fl_2fL-1aC7S7-a_22_3Yv-V5Rj9e0c_M-A"
+            src="https://upload.wikimedia.org/wikipedia/commons/thumb/4/41/JazzCash_logo_%282025%29.png/960px-JazzCash_logo_%282025%29.png"
             alt="JazzCash"
             width={24}
             height={24}
@@ -14,5 +14,3 @@ export const JazzcashIcon = ({ className }: { className?: string }) => {
         />
     )
 }
-
-    
