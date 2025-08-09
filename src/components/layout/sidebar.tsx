@@ -24,7 +24,8 @@ import {
   MessageSquare,
   UserCog,
   DollarSign,
-  Wallet
+  Wallet,
+  Briefcase
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { useAuth } from "@/hooks/use-auth";
@@ -38,6 +39,7 @@ const allMenuItems = [
   { href: "/appointments", label: "Appointments", icon: Calendar, roles: ['admin', 'barber', 'customer'] },
   { href: "/barbers", label: "Barbers", icon: Users, roles: ['admin', 'customer'] },
   { href: "/customers", label: "Customers", icon: Contact, roles: ['admin', 'barber'] },
+  { href: "/workers", label: "Workers", icon: Briefcase, roles: ['barber'] },
   { href: "/chat", label: "Chat", icon: MessageSquare, roles: ['admin', 'barber', 'customer'], notificationKey: 'chat' },
   { href: "/billing", label: "Billing", icon: DollarSign, roles: ['admin', 'barber', 'customer'] },
   { href: "/wallet", label: "Wallet", icon: Wallet, roles: ['admin', 'barber', 'customer'] },
@@ -50,7 +52,14 @@ export default function AppSidebar() {
   const { user, logout } = useAuth();
   const { unreadChatCount } = useNotification();
 
-  const menuItems = allMenuItems.filter(item => user && item.roles.includes(user.role));
+  const menuItems = allMenuItems.filter(item => {
+    if (!user) return false;
+    // Special condition for workers menu item
+    if (item.href === "/workers") {
+        return user.role === 'barber' && !user.shopOwnerId;
+    }
+    return item.roles.includes(user.role);
+  });
 
   return (
     <Sidebar className="border-r">

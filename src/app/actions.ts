@@ -5,12 +5,13 @@ import {
   suggestRescheduleOptions,
   type SuggestRescheduleOptionsInput,
 } from "@/ai/flows/suggest-reschedule-options";
-import { db } from "@/lib/firebase/firebase";
-import { getDocument, getOrCreateChat as getOrCreateChatFirestore, UserProfile, Appointment, updateAverageRating, WalletTransaction, createNotificationInFirestore } from "@/lib/firebase/firestore";
+import { auth, db } from "@/lib/firebase/firebase";
+import { getDocument, getOrCreateChat as getOrCreateChatFirestore, UserProfile, Appointment, updateAverageRating, WalletTransaction, createNotificationInFirestore, removeWorker as removeWorkerFromFirestore } from "@/lib/firebase/firestore";
 import { addDoc, collection, doc, getDoc, increment, serverTimestamp, setDoc, updateDoc, writeBatch, runTransaction, query, where, getDocs, orderBy } from "firebase/firestore";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import ImageKit from "imagekit";
+import { createUserWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth";
 
 const imagekit = new ImageKit({
   publicKey: process.env.IMAGEKIT_PUBLIC_KEY!,
@@ -840,4 +841,74 @@ export async function markMessagesAsRead(values: z.infer<typeof markMessagesAsRe
     }
 }
 
+// Worker Management Actions
+const addWorkerSchema = z.object({
+  displayName: z.string().min(2, "Name must be at least 2 characters."),
+  email: z.string().email("Invalid email address."),
+  specialty: z.string().optional(),
+  shopOwnerId: z.string().min(1),
+});
+
+export async function addWorker(values: z.infer<typeof addWorkerSchema>) {
+  const validatedFields = addWorkerSchema.safeParse(values);
+  if (!validatedFields.success) {
+    return { error: "Invalid fields: " + validatedFields.error.errors.map(e => e.message).join(', ') };
+  }
+
+  const { email, displayName, specialty, shopOwnerId } = validatedFields.data;
+
+  try {
+    // Note: We cannot create a user with a password directly from a server action
+    // using the client SDK's `createUserWithEmailAndPassword`. This would require
+    // Firebase Admin SDK.
+    // The workaround is to create the user document and then have them set a password.
+    // For this implementation, we will simulate user creation and send a password reset.
+    // A more robust solution would use a backend function (e.g., Cloud Function).
     
+    // Check if user already exists
+    const q = query(collection(db, "users"), where("email", "==", email));
+    const existingUser = await getDocs(q);
+    if (!existingUser.empty) {
+        return { error: "A user with this email already exists." };
+    }
+
+    // A placeholder for the new user's ID
+    const newWorkerRef = doc(collection(db, "users"));
+
+    const newUserProfile: Omit<UserProfile, 'id'> = {
+        uid: newWorkerRef.id, // Temporary UID
+        email: email,
+        displayName: displayName,
+        photoURL: `https://placehold.co/100x100.png?text=${displayName.charAt(0)}`,
+        createdAt: new Date().toISOString(),
+        role: 'barber',
+        accountStatus: 'Approved', // Workers are approved by default
+        specialty: specialty || 'All-rounder',
+        shopOwnerId: shopOwnerId,
+        coins: 0,
+        walletBalance: 0,
+        rating: 0,
+        totalRatings: 0,
+        presence: {
+            status: 'offline',
+            lastSeen: new Date().toISOString()
+        }
+    };
+    await setDoc(newWorkerRef, newUserProfile);
+    
+    // In a real app, you would now trigger a password reset email
+    // This part cannot be fully implemented without Admin SDK or a proper auth flow
+    // await sendPasswordResetEmail(auth, email);
+
+    revalidatePath('/workers');
+    return { success: `Worker ${displayName} added. They will need to set their password.` };
+
+  } catch (error: any) {
+    console.error("Add Worker Error:", error);
+    return { error: error.message || "Failed to add worker." };
+  }
+}
+
+export async function removeWorker(workerId: string) {
+    return removeWorkerFromFirestore(workerId);
+}

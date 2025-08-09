@@ -1,7 +1,7 @@
 
 'use server';
 
-import { collection, getDocs, getDoc, doc, query, where, DocumentData, Timestamp, serverTimestamp, addDoc, setDoc, orderBy, limit, updateDoc, or, increment, runTransaction, writeBatch } from 'firebase/firestore';
+import { collection, getDocs, getDoc, doc, query, where, DocumentData, Timestamp, serverTimestamp, addDoc, setDoc, orderBy, limit, updateDoc, or, increment, runTransaction, writeBatch, deleteDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase/firebase';
 
 // Type Definitions
@@ -34,7 +34,8 @@ export interface UserProfile {
     presence?: {
         status: 'online' | 'offline';
         lastSeen: string;
-    }
+    },
+    shopOwnerId?: string; // ID of the barber who owns the shop
 }
 
 export interface Message {
@@ -132,7 +133,15 @@ export async function getCustomers() {
 }
 
 export async function getBarbers() {
-    return getUsersWithRole('barber');
+    const q = query(collection(db, "users"), where("role", "==", "barber"), where("shopOwnerId", "==", null));
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => safeJsonParse({ id: doc.id, ...doc.data() }));
+}
+
+export async function getWorkersForBarber(shopOwnerId: string): Promise<UserProfile[]> {
+    const q = query(collection(db, "users"), where("role", "==", "barber"), where("shopOwnerId", "==", shopOwnerId));
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => safeJsonParse({ id: doc.id, ...doc.data() }));
 }
 
 
@@ -392,4 +401,18 @@ export async function createNotificationInFirestore(
   });
 }
 
-    
+// WORKER MANAGEMENT FUNCTIONS
+
+export async function removeWorker(workerId: string) {
+  try {
+    const workerRef = doc(db, "users", workerId);
+    // Instead of deleting, we can disassociate them or mark as inactive.
+    // For simplicity, this example will delete the user record.
+    // In a real app, consider implications on appointments etc.
+    await deleteDoc(workerRef);
+    return { success: "Worker removed successfully." };
+  } catch (error: any) {
+    console.error("Error removing worker:", error);
+    return { error: error.message || "Failed to remove worker." };
+  }
+}
