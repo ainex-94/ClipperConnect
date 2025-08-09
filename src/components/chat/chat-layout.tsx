@@ -1,3 +1,4 @@
+
 // src/components/chat/chat-layout.tsx
 "use client";
 
@@ -8,6 +9,8 @@ import { type Chat } from "@/lib/firebase/firestore";
 import { useRouter } from "next/navigation";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
+import { onSnapshot, doc } from "firebase/firestore";
+import { db } from "@/lib/firebase/firebase";
 
 interface ChatLayoutProps {
     chats: Chat[];
@@ -15,21 +18,47 @@ interface ChatLayoutProps {
 }
 
 export function ChatLayout({ chats: initialChats, defaultChatId }: ChatLayoutProps) {
+    const [chats, setChats] = useState(initialChats);
     const [selectedChat, setSelectedChat] = useState<Chat | null>(null);
     const router = useRouter();
     const isMobile = useIsMobile();
 
     useEffect(() => {
+        // Update local chats state when the initial prop changes
+        setChats(initialChats);
+    }, [initialChats]);
+
+    useEffect(() => {
+        const unsubscribers = chats.map(chat => {
+            const chatRef = doc(db, 'chats', chat.id);
+            return onSnapshot(chatRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    const updatedChat = { id: docSnap.id, ...docSnap.data() } as Chat;
+                    setChats(prevChats => 
+                        prevChats.map(c => c.id === updatedChat.id ? updatedChat : c)
+                    );
+                    // Also update the selectedChat if it's the one that changed
+                    setSelectedChat(prevSelChat => 
+                        prevSelChat?.id === updatedChat.id ? updatedChat : prevSelChat
+                    );
+                }
+            });
+        });
+        return () => unsubscribers.forEach(unsub => unsub());
+    }, [chats]);
+
+
+    useEffect(() => {
         if (defaultChatId) {
-            const defaultChat = initialChats.find(chat => chat.id === defaultChatId);
+            const defaultChat = chats.find(chat => chat.id === defaultChatId);
             if (defaultChat) {
                 setSelectedChat(defaultChat);
             }
-        } else if (initialChats.length > 0 && !isMobile) {
+        } else if (chats.length > 0 && !isMobile) {
             // Select the first chat by default on desktop
-            setSelectedChat(initialChats[0]);
+            setSelectedChat(chats[0]);
         }
-    }, [defaultChatId, initialChats, isMobile]);
+    }, [defaultChatId, chats, isMobile]);
 
     const handleChatSelect = (chat: Chat) => {
         setSelectedChat(chat);
@@ -54,7 +83,7 @@ export function ChatLayout({ chats: initialChats, defaultChatId }: ChatLayoutPro
                         <h2 className="text-xl font-bold">Conversations</h2>
                     </header>
                     <ChatList
-                        chats={initialChats}
+                        chats={chats}
                         selectedChat={selectedChat}
                         onChatSelect={handleChatSelect}
                     />

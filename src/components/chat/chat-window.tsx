@@ -1,17 +1,21 @@
+
 // src/components/chat/chat-window.tsx
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { type Chat, type Message, sendMessage } from "@/lib/firebase/firestore";
 import { db } from "@/lib/firebase/firebase";
-import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
+import { collection, query, orderBy, onSnapshot, doc } from "firebase/firestore";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Send, ArrowLeft, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "../ui/scroll-area";
+import { markMessagesAsRead, updateUserTypingStatus } from "@/app/actions";
+import { useDebounce } from "@/hooks/use-debounce";
+import { MessageStatus } from "./message-status";
 
 interface ChatWindowProps {
   chat: Chat | null;
@@ -23,21 +27,54 @@ export function ChatWindow({ chat, isMobile, onBack }: ChatWindowProps) {
   const { user } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
+  const [isTyping, setIsTyping] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
+  const otherParticipant = chat?.participants.find(p => p.id !== user?.uid);
+  const otherUserIsTyping = chat?.typing?.[otherParticipant?.id || ""] || false;
+
+  const debouncedTyping = useDebounce(() => {
+    if (chat && user) {
+        updateUserTypingStatus({ chatId: chat.id, userId: user.uid, isTyping: false });
+    }
+  }, 2000);
+
   useEffect(() => {
-    if (chat) {
-      const q = query(
+    if (chat && user) {
+      // Mark messages as read when chat is opened
+      markMessagesAsRead({ chatId: chat.id, currentUserId: user.uid });
+      
+      const chatRef = doc(db, 'chats', chat.id);
+      const messagesQuery = query(
         collection(db, "chats", chat.id, "messages"),
         orderBy("timestamp", "asc")
       );
-      const unsubscribe = onSnapshot(q, (querySnapshot) => {
+
+      const unsubscribeMessages = onSnapshot(messagesQuery, (querySnapshot) => {
         const msgs = querySnapshot.docs.map(doc => ({...doc.data(), id: doc.id } as Message));
         setMessages(msgs);
       });
-      return () => unsubscribe();
+      
+      // Separate listener for the chat document itself (for typing status)
+      const unsubscribeChat = onSnapshot(chatRef, (docSnap) => {
+        if (docSnap.exists()) {
+            const chatData = docSnap.data() as Chat;
+            // You can update the chat state here if needed, e.g., for typing indicators
+            // For now, we get the typing status directly from the `chat` prop which should be updated by the parent
+        }
+      });
+
+      return () => {
+        unsubscribeMessages();
+        unsubscribeChat();
+        // Ensure typing status is set to false when component unmounts
+        if (isTyping) {
+            updateUserTypingStatus({ chatId: chat.id, userId: user.uid, isTyping: false });
+        }
+      };
     }
-  }, [chat]);
+  }, [chat, user, isTyping]);
+
 
   useEffect(() => {
     // Scroll to bottom when new messages arrive
@@ -51,14 +88,25 @@ export function ChatWindow({ chat, isMobile, onBack }: ChatWindowProps) {
   
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (newMessage.trim() === "" || !chat || !user) return;
+    if (newMessage.trim() === "" || !chat || !user || !otherParticipant) return;
     
-    const otherParticipant = chat.participants.find(p => p.id !== user.uid);
-    if (!otherParticipant) return;
-
     await sendMessage(chat.id, user.uid, otherParticipant.id, newMessage);
+    await updateUserTypingStatus({ chatId: chat.id, userId: user.uid, isTyping: false });
+    setIsTyping(false);
     setNewMessage("");
   };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setNewMessage(e.target.value);
+    if (chat && user) {
+        if (!isTyping) {
+            updateUserTypingStatus({ chatId: chat.id, userId: user.uid, isTyping: true });
+            setIsTyping(true);
+        }
+        debouncedTyping();
+    }
+  };
+
 
   if (!chat || !user) {
     return (
@@ -69,8 +117,6 @@ export function ChatWindow({ chat, isMobile, onBack }: ChatWindowProps) {
       </div>
     );
   }
-
-  const otherParticipant = chat.participants.find(p => p.id !== user.uid);
 
   return (
     <div className="flex flex-col h-full bg-background">
@@ -84,17 +130,20 @@ export function ChatWindow({ chat, isMobile, onBack }: ChatWindowProps) {
             <AvatarImage data-ai-hint="person portrait" src={otherParticipant?.photoURL} />
             <AvatarFallback>{otherParticipant?.displayName?.[0]}</AvatarFallback>
         </Avatar>
-        <h2 className="text-lg font-bold">{otherParticipant?.displayName}</h2>
+        <div className="flex flex-col">
+            <h2 className="text-lg font-bold">{otherParticipant?.displayName}</h2>
+            {otherUserIsTyping && <p className="text-xs text-primary animate-pulse">typing...</p>}
+        </div>
       </header>
       
       <ScrollArea className="flex-1" ref={scrollAreaRef}>
-          <div className="p-4 space-y-6">
-            {messages.map((msg) => (
+          <div className="p-4 space-y-2">
+            {messages.map((msg, index) => (
             <div
-                key={msg.id}
-                className={cn("flex items-end gap-2", {
+                key={msg.id || index}
+                className={cn("flex items-end gap-2 max-w-lg md:max-w-xl", {
                 "justify-start": msg.senderId !== user.uid,
-                "justify-end": msg.senderId === user.uid,
+                "justify-end ml-auto": msg.senderId === user.uid,
                 })}
             >
                 {msg.senderId !== user.uid && (
@@ -105,20 +154,17 @@ export function ChatWindow({ chat, isMobile, onBack }: ChatWindowProps) {
                 )}
                 <div
                 className={cn(
-                    "max-w-xs md:max-w-md lg:max-w-lg rounded-xl p-3 px-4 shadow-sm",
+                    "rounded-xl p-3 px-4 shadow-sm",
                     {
                     "bg-primary text-primary-foreground rounded-br-none": msg.senderId === user.uid,
                     "bg-muted text-foreground rounded-bl-none": msg.senderId !== user.uid,
                     }
                 )}
                 >
-                <p className="text-sm break-words">{msg.text}</p>
+                    <p className="text-sm break-words whitespace-pre-wrap">{msg.text}</p>
                 </div>
                 {msg.senderId === user.uid && (
-                <Avatar className="h-8 w-8 self-start">
-                    <AvatarImage data-ai-hint="person" src={user?.photoURL || ''} />
-                    <AvatarFallback>{user?.displayName?.[0]}</AvatarFallback>
-                </Avatar>
+                    <MessageStatus status={msg.status} />
                 )}
             </div>
             ))}
@@ -129,7 +175,7 @@ export function ChatWindow({ chat, isMobile, onBack }: ChatWindowProps) {
         <form onSubmit={handleSendMessage} className="flex items-center gap-2">
           <Input
             value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
+            onChange={handleInputChange}
             placeholder="Type a message..."
             autoComplete="off"
             className="h-12 text-base"

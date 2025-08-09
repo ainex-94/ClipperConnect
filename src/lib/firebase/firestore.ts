@@ -39,6 +39,7 @@ export interface Message {
     senderId: string;
     receiverId: string;
     timestamp: Timestamp;
+    status: 'sent' | 'read';
 }
 
 export interface Chat {
@@ -52,6 +53,9 @@ export interface Chat {
     lastMessage?: {
         text: string;
         timestamp: Timestamp;
+    },
+    typing?: {
+        [key: string]: boolean;
     }
 }
 
@@ -214,19 +218,15 @@ export async function getRecentAppointments(barberId?: string): Promise<Appointm
     } else {
         q = query(
             collection(db, "appointments"), 
-            orderBy("dateTime", "desc"),
-            limit(5)
         );
     }
     
     const querySnapshot = await getDocs(q);
     let appointments = querySnapshot.docs.map(doc => safeJsonParse({ id: doc.id, ...doc.data() })) as Appointment[];
     
-    if (barberId) {
-        appointments = appointments
-            .sort((a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime())
-            .slice(0, 5);
-    }
+    appointments = appointments
+        .sort((a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime())
+        .slice(0, 5);
 
     return appointments;
 }
@@ -270,6 +270,7 @@ export async function getOrCreateChat(userId1: string, userId2: string) {
                 { id: userId1, displayName: user1Data.displayName, photoURL: user1Data.photoURL },
                 { id: userId2, displayName: user2Data.displayName, photoURL: user2Data.photoURL },
             ],
+            typing: { [userId1]: false, [userId2]: false },
             createdAt: serverTimestamp(),
         });
         
@@ -308,6 +309,7 @@ export async function sendMessage(chatId: string, senderId: string, receiverId: 
         receiverId,
         text,
         timestamp,
+        status: 'sent'
     });
 
     // Also update the last message on the chat document

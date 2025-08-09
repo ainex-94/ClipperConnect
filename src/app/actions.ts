@@ -714,3 +714,55 @@ export async function markAllNotificationsAsRead(values: z.infer<typeof markAllN
         return { error: "Failed to update notifications." };
     }
 }
+
+
+// Chat-specific Actions
+const updateUserTypingStatusSchema = z.object({
+    chatId: z.string().min(1),
+    userId: z.string().min(1),
+    isTyping: z.boolean(),
+});
+
+export async function updateUserTypingStatus(values: z.infer<typeof updateUserTypingStatusSchema>) {
+    const { chatId, userId, isTyping } = values;
+    try {
+        const chatRef = doc(db, "chats", chatId);
+        await updateDoc(chatRef, {
+            [`typing.${userId}`]: isTyping
+        });
+        return { success: true };
+    } catch (error) {
+        console.error("Error updating typing status:", error);
+        return { error: "Failed to update typing status." };
+    }
+}
+
+const markMessagesAsReadSchema = z.object({
+    chatId: z.string().min(1),
+    currentUserId: z.string().min(1),
+});
+
+export async function markMessagesAsRead(values: z.infer<typeof markMessagesAsReadSchema>) {
+    const { chatId, currentUserId } = values;
+    try {
+        const messagesRef = collection(db, "chats", chatId, "messages");
+        const q = query(messagesRef, where("receiverId", "==", currentUserId), where("status", "==", "sent"));
+        const querySnapshot = await getDocs(q);
+        
+        if (querySnapshot.empty) {
+            return { success: true, messagesUpdated: 0 };
+        }
+
+        const batch = writeBatch(db);
+        querySnapshot.docs.forEach(doc => {
+            batch.update(doc.ref, { status: "read" });
+        });
+        await batch.commit();
+        
+        revalidatePath('/chat'); // To update notification counts
+        return { success: true, messagesUpdated: querySnapshot.size };
+    } catch (error) {
+        console.error("Error marking messages as read:", error);
+        return { error: "Failed to mark messages as read." };
+    }
+}
