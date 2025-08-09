@@ -78,7 +78,7 @@ export function ChatWindow({ chat, isMobile, onBack }: ChatWindowProps) {
       return () => {
         unsubscribeMessages();
         // Ensure typing status is set to false when component unmounts
-        if (isTyping) {
+        if (isTyping && chat && user) {
             updateUserTypingStatus({ chatId: chat.id, userId: user.uid, isTyping: false });
         }
       };

@@ -41,8 +41,17 @@ export default function BarbersPage() {
   const [isDistanceFilterEnabled, setIsDistanceFilterEnabled] = useState(false);
 
   useEffect(() => {
-    // Get user's location
-    if (navigator.geolocation) {
+    const fetchBarbers = async () => {
+      setLoading(true);
+      const barbersData = await getBarbers();
+      setBarbers(barbersData);
+      setLoading(false);
+    };
+
+    fetchBarbers();
+
+    // Get user's location only on the client-side
+    if (typeof window !== "undefined" && navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           setCurrentLocation({
@@ -52,23 +61,11 @@ export default function BarbersPage() {
           setIsDistanceFilterEnabled(true);
         },
         () => {
-          // Handle location error or denial by doing nothing, so no distance filter is applied.
           console.warn("Could not get user location. Distance filter disabled.");
           setIsDistanceFilterEnabled(false);
         }
       );
     }
-  }, []);
-
-  useEffect(() => {
-    const fetchBarbers = async () => {
-      setLoading(true);
-      const barbersData = await getBarbers();
-      setBarbers(barbersData);
-      setLoading(false);
-    };
-
-    fetchBarbers();
   }, []);
   
   const filteredBarbers = useMemo(() => {
