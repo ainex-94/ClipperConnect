@@ -7,7 +7,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { getBarbers, UserProfile } from "@/lib/firebase/firestore";
-import { Phone, Mail, Star, MessageSquare, Loader2 } from "lucide-react";
+import { Phone, Mail, Star, MessageSquare, Loader2, MapPin } from "lucide-react";
 import { ViewScheduleDialog } from "@/components/view-schedule-dialog";
 import { StartChatButton } from "@/components/start-chat-button";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
@@ -133,6 +133,9 @@ export default function BarbersPage() {
               {filteredBarbers.map((barber) => {
                 const images = [barber.photoURL, ...(barber.shopImageUrls || [])];
                 const ratingValue = barber.rating || 0;
+                const distance = currentLocation && barber.latitude && barber.longitude
+                    ? getDistance(currentLocation.lat, currentLocation.lng, barber.latitude, barber.longitude)
+                    : null;
                 return (
                   <Link key={barber.id} href={`/barbers/${barber.id}`} className="flex flex-col">
                     <Card className="flex flex-col h-full hover:shadow-xl transition-shadow duration-300">
@@ -181,6 +184,10 @@ export default function BarbersPage() {
                             <div className="flex items-center gap-2">
                               <Phone className="w-4 h-4" />
                               <span>{barber.phone || '+1 234 567 890'}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <MapPin className="w-4 h-4" />
+                                <span>{distance ? `${distance.toFixed(1)} km away` : 'Location not available'}</span>
                             </div>
                           </div>
                         </CardContent>
