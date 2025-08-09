@@ -659,21 +659,20 @@ export async function updateUserAvailability(values: z.infer<typeof userAvailabi
 
 // Notification Actions
 const createNotificationSchema = z.object({
-    userId: z.string().min(1),
     title: z.string().min(1),
     description: z.string().min(1),
     href: z.string().optional(),
 });
 
-export async function createNotification(userId: string, data: Omit<z.infer<typeof createNotificationSchema>, 'userId'>) {
-    const validatedData = createNotificationSchema.safeParse({ userId, ...data });
+export async function createNotification(userId: string, data: z.infer<typeof createNotificationSchema>) {
+    const validatedData = createNotificationSchema.safeParse(data);
     if (!validatedData.success) {
         // Fail silently in production
         console.error("Invalid notification data:", validatedData.error);
         return;
     }
     await createNotificationInFirestore(userId, validatedData.data);
-    revalidatePath('/chat');
+    revalidatePath('/chat'); // Revalidates path to trigger notification updates
 }
 
 const markNotificationAsReadSchema = z.object({

@@ -29,13 +29,15 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "../ui/button";
+import { useNotification } from "@/hooks/use-notification";
+import { Badge } from "../ui/badge";
 
 const allMenuItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard, roles: ['admin', 'barber', 'customer'] },
   { href: "/appointments", label: "Appointments", icon: Calendar, roles: ['admin', 'barber', 'customer'] },
   { href: "/barbers", label: "Barbers", icon: Users, roles: ['admin', 'customer'] },
   { href: "/customers", label: "Customers", icon: Contact, roles: ['admin', 'barber'] },
-  { href: "/chat", label: "Chat", icon: MessageSquare, roles: ['admin', 'barber', 'customer'] },
+  { href: "/chat", label: "Chat", icon: MessageSquare, roles: ['admin', 'barber', 'customer'], notificationKey: 'chat' },
   { href: "/billing", label: "Billing", icon: DollarSign, roles: ['admin', 'barber', 'customer'] },
   { href: "/wallet", label: "Wallet", icon: Wallet, roles: ['admin', 'barber', 'customer'] },
   { href: "/user-management", label: "User Management", icon: UserCog, roles: ['admin'] },
@@ -45,6 +47,7 @@ const allMenuItems = [
 export default function AppSidebar() {
   const pathname = usePathname();
   const { user, logout } = useAuth();
+  const { unreadCount } = useNotification();
 
   const menuItems = allMenuItems.filter(item => user && item.roles.includes(user.role));
 
@@ -64,12 +67,17 @@ export default function AppSidebar() {
             <SidebarMenuItem key={item.href}>
               <SidebarMenuButton
                 asChild
-                isActive={pathname === item.href}
+                isActive={pathname.startsWith(item.href) && (item.href !== '/' || pathname === '/')}
                 className="justify-start"
               >
-                <Link href={item.href}>
-                  <item.icon className="h-4 w-4" />
-                  <span>{item.label}</span>
+                <Link href={item.href} className="flex items-center justify-between w-full">
+                    <div className="flex items-center gap-2">
+                        <item.icon className="h-4 w-4" />
+                        <span>{item.label}</span>
+                    </div>
+                     {item.notificationKey === 'chat' && unreadCount > 0 && (
+                        <Badge className="h-5 w-5 p-0 flex items-center justify-center">{unreadCount}</Badge>
+                    )}
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
