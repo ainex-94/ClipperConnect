@@ -1,7 +1,7 @@
 // src/app/appointments/page.tsx
 'use client';
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,6 +20,12 @@ import { type ColumnDef } from "@tanstack/react-table";
 import { payFromWallet, updateAppointmentStatus } from "../actions";
 import { useToast } from "@/hooks/use-toast";
 import { useNotification } from "@/hooks/use-notification";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+
+type FilterType = "service" | "appointmentStatus" | "paymentStatus";
+const appointmentStatuses: Appointment['status'][] = ['Confirmed', 'Completed', 'Cancelled', 'Pending'];
+const paymentStatuses: Appointment['paymentStatus'][] = ['Paid', 'Unpaid'];
 
 export default function AppointmentsPage() {
   const { user, loading: authLoading } = useAuth();
@@ -28,6 +34,9 @@ export default function AppointmentsPage() {
   const { toast } = useToast();
   const { triggerNotificationSound } = useNotification();
   
+  const [filterType, setFilterType] = useState<FilterType>("service");
+  const [filterValue, setFilterValue] = useState<string>("");
+
   const fetchAppointments = useCallback(async () => {
     if (user) {
       setLoading(true);
@@ -95,6 +104,28 @@ export default function AppointmentsPage() {
         return "default";
     }
   };
+
+  const getPaymentStatusVariant = (status: Appointment['paymentStatus']) => {
+    switch (status) {
+        case 'Paid': return 'default';
+        case 'Unpaid': return 'destructive';
+        default: return 'secondary';
+    }
+  }
+
+  const filteredAppointments = useMemo(() => {
+    if (!filterValue) return appointments;
+    if (filterType === 'service') {
+        return appointments.filter(a => a.service.toLowerCase().includes(filterValue.toLowerCase()));
+    }
+    if (filterType === 'appointmentStatus') {
+        return appointments.filter(a => a.status === filterValue);
+    }
+    if (filterType === 'paymentStatus') {
+        return appointments.filter(a => a.paymentStatus === filterValue);
+    }
+    return appointments;
+  }, [appointments, filterType, filterValue]);
   
   const columns: ColumnDef<Appointment>[] = [
     { accessorKey: "customerName", header: "Customer" },
@@ -112,10 +143,17 @@ export default function AppointmentsPage() {
     },
     {
       accessorKey: "status",
-      header: "Status",
+      header: "Appt. Status",
       cell: ({ row }) => (
         <Badge variant={getStatusVariant(row.original.status)}>{row.original.status}</Badge>
       ),
+    },
+    {
+        accessorKey: "paymentStatus",
+        header: "Payment Status",
+        cell: ({ row }) => (
+            <Badge variant={getPaymentStatusVariant(row.original.paymentStatus)}>{row.original.paymentStatus}</Badge>
+        )
     },
     {
       id: "actions",
@@ -202,6 +240,11 @@ export default function AppointmentsPage() {
     },
   ];
 
+  const handleFilterTypeChange = (value: FilterType) => {
+    setFilterType(value);
+    setFilterValue("");
+  }
+
   return (
     <Card>
        <CardHeader className="flex flex-row items-center justify-between">
@@ -219,15 +262,65 @@ export default function AppointmentsPage() {
             <Loader2 className="h-8 w-8 animate-spin" />
           </div>
         ) : (
-          <DataTable
-            columns={columns}
-            data={appointments}
-            filterColumn="service"
-            filterPlaceholder="Filter by service..."
-            emptyState={
-              user ? "No appointments found." : "Please log in to see your appointments."
-            }
-          />
+          <>
+            <div className="flex items-center gap-4 py-4">
+                <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium">Filter by:</span>
+                    <Select value={filterType} onValueChange={(value: FilterType) => handleFilterTypeChange(value)}>
+                        <SelectTrigger className="w-[180px]">
+                            <SelectValue placeholder="Select filter type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="service">Service</SelectItem>
+                            <SelectItem value="appointmentStatus">Appointment Status</SelectItem>
+                            <SelectItem value="paymentStatus">Payment Status</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+
+                {filterType === 'service' && (
+                    <Input 
+                        placeholder="Filter by service..."
+                        value={filterValue}
+                        onChange={(e) => setFilterValue(e.target.value)}
+                        className="max-w-sm"
+                    />
+                )}
+                {filterType === 'appointmentStatus' && (
+                    <Select value={filterValue} onValueChange={setFilterValue}>
+                        <SelectTrigger className="w-[200px]">
+                            <SelectValue placeholder="Select an appointment status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="">All</SelectItem>
+                            {appointmentStatuses.map(status => (
+                                <SelectItem key={status} value={status}>{status}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                )}
+                 {filterType === 'paymentStatus' && (
+                    <Select value={filterValue} onValueChange={setFilterValue}>
+                        <SelectTrigger className="w-[200px]">
+                            <SelectValue placeholder="Select a payment status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="">All</SelectItem>
+                            {paymentStatuses.map(status => (
+                                <SelectItem key={status} value={status!}>{status}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                )}
+            </div>
+            <DataTable
+                columns={columns}
+                data={filteredAppointments}
+                emptyState={
+                user ? "No appointments found." : "Please log in to see your appointments."
+                }
+            />
+          </>
         )}
       </CardContent>
     </Card>
