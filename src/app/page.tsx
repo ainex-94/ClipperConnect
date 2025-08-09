@@ -147,17 +147,24 @@ export default function DashboardPage() {
                     <CardDescription>Don't be late! Here are the details for your next booking.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <div className="flex items-center gap-4 p-4 rounded-lg bg-muted/50">
-                        <Avatar className="h-16 w-16">
+                    <div className="flex flex-col sm:flex-row items-center gap-4 p-4 rounded-lg bg-muted/50">
+                        <Avatar className="h-20 w-20">
                           <AvatarImage data-ai-hint="person portrait" src={upcomingAppointment.barberPhotoURL} alt={upcomingAppointment.barberName} />
                           <AvatarFallback>{upcomingAppointment.barberName?.charAt(0)}</AvatarFallback>
                         </Avatar>
-                        <div className="flex-1 grid gap-1">
-                            <p className="font-semibold text-lg">{upcomingAppointment.barberName}</p>
-                            <p className="text-muted-foreground">{upcomingAppointment.service}</p>
-                            <p className="font-bold text-primary text-xl">{format(new Date(upcomingAppointment.dateTime), "PPP p")}</p>
+                        <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-4 w-full sm:w-auto text-center sm:text-left">
+                            <div className="sm:col-span-1">
+                                <p className="font-semibold text-lg">{upcomingAppointment.barberName}</p>
+                                <p className="text-muted-foreground">{upcomingAppointment.service}</p>
+                            </div>
+                             <div className="sm:col-span-1 flex flex-col items-center justify-center">
+                                <p className="font-bold text-primary text-lg">{format(new Date(upcomingAppointment.dateTime), "PPP")}</p>
+                                <p className="font-bold text-primary text-lg">{format(new Date(upcomingAppointment.dateTime), "p")}</p>
+                            </div>
+                             <div className="sm:col-span-1 flex items-center justify-center">
+                                <StartChatButton otherUserId={upcomingAppointment.barberId} />
+                            </div>
                         </div>
-                        <StartChatButton otherUserId={upcomingAppointment.barberId} />
                     </div>
                 </CardContent>
             </Card>
