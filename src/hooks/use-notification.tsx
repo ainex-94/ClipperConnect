@@ -10,6 +10,7 @@ import {
   useCallback,
   useMemo,
   useEffect,
+  useRef,
 } from "react";
 import { useAuth } from "./use-auth";
 import { collection, onSnapshot, query, orderBy, limit } from "firebase/firestore";
@@ -33,46 +34,10 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loadingNotifications, setLoadingNotifications] = useState(true);
+  const notificationsRef = useRef<Notification[]>([]);
   
   const unreadCount = useMemo(() => notifications.filter(n => !n.read).length, [notifications]);
   const unreadChatCount = useMemo(() => notifications.filter(n => !n.read && n.href?.startsWith('/chat')).length, [notifications]);
-
-  useEffect(() => {
-    if (user) {
-      setLoadingNotifications(true);
-      const notificationsRef = collection(db, "users", user.uid, "notifications");
-      const q = query(notificationsRef, orderBy("timestamp", "desc"), limit(50));
-      
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-        const fetchedNotifications = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-          timestamp: doc.data().timestamp?.toDate().toISOString() || new Date().toISOString()
-        } as Notification));
-        
-        // Check for new, unread notifications to play sound
-        if (notifications.length > 0) {
-            const newUnread = fetchedNotifications.filter(n => 
-                !n.read && !notifications.find(oldN => oldN.id === n.id)
-            );
-            if (newUnread.length > 0) {
-                triggerNotificationSound();
-            }
-        }
-        
-        setNotifications(fetchedNotifications);
-        setLoadingNotifications(false);
-      }, (error) => {
-        console.error("Error fetching notifications:", error);
-        setLoadingNotifications(false);
-      });
-
-      return () => unsubscribe();
-    } else {
-      setNotifications([]);
-      setLoadingNotifications(false);
-    }
-  }, [user, notifications.length]);
 
   const notificationSound = useMemo(() => {
     if (typeof window !== "undefined") {
@@ -88,6 +53,46 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       console.log("Notification sound autoplay prevented:", error);
     });
   }, [notificationSound]);
+
+
+  useEffect(() => {
+    if (user) {
+      setLoadingNotifications(true);
+      const notificationsColRef = collection(db, "users", user.uid, "notifications");
+      const q = query(notificationsColRef, orderBy("timestamp", "desc"), limit(50));
+      
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const fetchedNotifications = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+          timestamp: doc.data().timestamp?.toDate().toISOString() || new Date().toISOString()
+        } as Notification));
+        
+        // Check for new, unread notifications to play sound
+        if (notificationsRef.current.length > 0) {
+            const newUnread = fetchedNotifications.filter(n => 
+                !n.read && !notificationsRef.current.find(oldN => oldN.id === n.id)
+            );
+            if (newUnread.length > 0) {
+                triggerNotificationSound();
+            }
+        }
+        
+        setNotifications(fetchedNotifications);
+        notificationsRef.current = fetchedNotifications; // Update ref
+        setLoadingNotifications(false);
+      }, (error) => {
+        console.error("Error fetching notifications:", error);
+        setLoadingNotifications(false);
+      });
+
+      return () => unsubscribe();
+    } else {
+      setNotifications([]);
+      notificationsRef.current = [];
+      setLoadingNotifications(false);
+    }
+  }, [user, triggerNotificationSound]);
 
   const markAsRead = useCallback(async (notificationId: string) => {
     if (!user) return;

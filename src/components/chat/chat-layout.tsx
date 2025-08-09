@@ -45,7 +45,9 @@ export function ChatLayout({ chats: initialChats, defaultChatId }: ChatLayoutPro
             });
         });
         return () => unsubscribers.forEach(unsub => unsub());
-    }, [chats]);
+    // The dependency array should only run this effect when initialChats changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [initialChats]);
 
 
     useEffect(() => {
@@ -55,8 +57,13 @@ export function ChatLayout({ chats: initialChats, defaultChatId }: ChatLayoutPro
                 setSelectedChat(defaultChat);
             }
         } else if (chats.length > 0 && !isMobile) {
-            // Select the first chat by default on desktop
-            setSelectedChat(chats[0]);
+            // Select the most recent chat by default on desktop if no ID is specified
+            const sortedChats = [...chats].sort((a, b) => {
+                const timeA = a.lastMessage?.timestamp?.toMillis() || 0;
+                const timeB = b.lastMessage?.timestamp?.toMillis() || 0;
+                return timeB - timeA;
+            });
+            setSelectedChat(sortedChats[0]);
         }
     }, [defaultChatId, chats, isMobile]);
 
