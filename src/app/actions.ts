@@ -307,6 +307,7 @@ export async function updateAppointmentStatus(values: z.infer<typeof updateAppoi
 const recordPaymentSchema = z.object({
     appointmentId: z.string().min(1),
     amountPaid: z.coerce.number().min(0, "Amount paid cannot be negative."),
+    paymentMethod: z.string().default("Cash"),
 });
 
 export async function recordPayment(values: z.infer<typeof recordPaymentSchema>) {
@@ -331,7 +332,8 @@ export async function recordPayment(values: z.infer<typeof recordPaymentSchema>)
         await updateDoc(appointmentRef, { 
             amountPaid: values.amountPaid,
             paymentStatus: 'Paid',
-            status: 'Completed' // Ensure status is completed
+            status: 'Completed', // Ensure status is completed
+            paymentMethod: values.paymentMethod,
         });
 
         // Award coins
@@ -505,7 +507,7 @@ export async function payFromWallet(values: z.infer<typeof payFromWalletSchema>)
             transaction.update(customerRef, { walletBalance: increment(-price) });
             const customerTxRef = doc(collection(db, "users", appointment.customerId, "walletTransactions"));
             transaction.set(customerTxRef, {
-                amount: price,
+                amount: -price,
                 type: "Payment Sent",
                 description: `Payment for service: ${appointment.service} to ${appointment.barberName}`,
                 timestamp: serverTimestamp()
@@ -524,7 +526,8 @@ export async function payFromWallet(values: z.infer<typeof payFromWalletSchema>)
             // 3. Update appointment
             transaction.update(appointmentRef, {
                 paymentStatus: 'Paid',
-                amountPaid: price
+                amountPaid: price,
+                paymentMethod: 'Wallet',
             });
             
             // 4. Award coins
@@ -553,6 +556,64 @@ export async function payFromWallet(values: z.infer<typeof payFromWalletSchema>)
         return { success: "Payment successful!" };
     } catch (error: any) {
         console.error("Payment Error:", error);
+        return { error: error.message || "Failed to process payment." };
+    }
+}
+
+const recordGatewayPaymentSchema = z.object({
+    appointmentId: z.string().min(1),
+    paymentMethod: z.enum(['JazzCash', 'EasyPaisa']),
+});
+
+export async function recordGatewayPayment(values: z.infer<typeof recordGatewayPaymentSchema>) {
+    const { appointmentId, paymentMethod } = values;
+    
+    try {
+        await runTransaction(db, async (transaction) => {
+            const appointmentRef = doc(db, "appointments", appointmentId);
+            const appointmentDoc = await transaction.get(appointmentRef);
+
+            if (!appointmentDoc.exists()) throw new Error("Appointment not found.");
+            const appointment = appointmentDoc.data() as Appointment;
+            if (appointment.status !== 'Completed') throw new Error("Appointment is not completed yet.");
+            if (appointment.paymentStatus === 'Paid') throw new Error("Appointment has already been paid for.");
+
+            const price = appointment.price || 0;
+            const customerRef = doc(db, "users", appointment.customerId);
+            const barberRef = doc(db, "users", appointment.barberId);
+            
+            // 1. Update appointment
+            transaction.update(appointmentRef, {
+                paymentStatus: 'Paid',
+                amountPaid: price,
+                paymentMethod: paymentMethod,
+            });
+            
+            // 2. Award coins
+            const customerCoins = Math.floor(price / 100) * 100;
+            const barberCoins = Math.floor(price / 100) * 50;
+            transaction.update(customerRef, { coins: increment(customerCoins) });
+            transaction.update(barberRef, { coins: increment(barberCoins) });
+            
+            // 3. Create notifications
+            await createNotificationInFirestore(appointment.customerId, {
+                title: "Payment Successful",
+                description: `Your payment of PKR ${price} via ${paymentMethod} was successful.`,
+                href: "/billing"
+            });
+            await createNotificationInFirestore(appointment.barberId, {
+                title: "Payment Received",
+                description: `You received a payment of PKR ${price} from ${appointment.customerName} via ${paymentMethod}.`,
+                href: "/billing"
+            });
+        });
+
+        revalidatePath('/appointments');
+        revalidatePath('/billing');
+        revalidatePath('/');
+        return { success: "Payment successful!" };
+    } catch (error: any) {
+        console.error("Gateway Payment Error:", error);
         return { error: error.message || "Failed to process payment." };
     }
 }
@@ -778,3 +839,5 @@ export async function markMessagesAsRead(values: z.infer<typeof markMessagesAsRe
         return { error: "Failed to mark messages as read." };
     }
 }
+
+    

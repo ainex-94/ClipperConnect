@@ -6,7 +6,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getAppointmentsForUser, Appointment, getAllAppointments } from "@/lib/firebase/firestore";
-import { MoreHorizontal, Loader2, Wallet, CheckCircle } from "lucide-react";
+import { MoreHorizontal, Loader2, Wallet, CheckCircle, CreditCard } from "lucide-react";
 import { format } from 'date-fns';
 import { NewAppointmentDialog } from "@/components/new-appointment-dialog";
 import { Button } from "@/components/ui/button";
@@ -17,11 +17,12 @@ import { RateAppointmentDialog } from "@/components/rate-appointment-dialog";
 import { EditAppointmentDialog } from "@/components/edit-appointment-dialog";
 import { DataTable } from "@/components/ui/data-table";
 import { type ColumnDef } from "@tanstack/react-table";
-import { recordPayment, updateAppointmentStatus } from "../actions";
+import { updateAppointmentStatus, payFromWallet } from "../actions";
 import { useToast } from "@/hooks/use-toast";
 import { useNotification } from "@/hooks/use-notification";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { PaymentOptionsDialog } from "@/components/payment-options-dialog";
 
 type FilterType = "service" | "appointmentStatus" | "paymentStatus";
 const appointmentStatuses: Appointment['status'][] = ['Confirmed', 'Completed', 'Cancelled', 'Pending'];
@@ -75,19 +76,6 @@ export default function AppointmentsPage() {
     } else {
       toast({ variant: 'destructive', title: 'Error', description: result.error });
     }
-  };
-
-  const handlePayFromWallet = async (appointmentId: string) => {
-    setLoading(true);
-    const result = await payFromWallet({ appointmentId });
-    if (result.success) {
-      toast({ title: 'Success', description: result.success });
-      triggerNotificationSound();
-      fetchAppointments();
-    } else {
-      toast({ variant: 'destructive', title: 'Payment Failed', description: result.error });
-    }
-    setLoading(false); // Ensure loading is set to false in all cases
   };
 
   const getStatusVariant = (status: Appointment['status']) => {
@@ -166,7 +154,6 @@ export default function AppointmentsPage() {
         const isCustomer = user.role === 'customer';
         const isAdmin = user.role === 'admin';
         const canPay = isCustomer && appointment.status === 'Completed' && appointment.paymentStatus !== 'Paid';
-        const isConfirmedAndUnpaid = appointment.status === 'Confirmed' && appointment.paymentStatus !== 'Paid';
         const isCompletedAndUnpaid = appointment.status === 'Completed' && appointment.paymentStatus !== 'Paid';
 
 
@@ -207,10 +194,10 @@ export default function AppointmentsPage() {
                 )}
 
                 {canPay && (
-                   <DropdownMenuItem onSelect={() => handlePayFromWallet(appointment.id)}>
-                    <Wallet className="mr-2 h-4 w-4" />
-                    Pay from Wallet
-                  </DropdownMenuItem>
+                   <PaymentOptionsDialog 
+                    appointment={appointment} 
+                    onSuccess={fetchAppointments}
+                   />
                 )}
                 
                 {appointment.status === 'Completed' && (
@@ -308,7 +295,7 @@ export default function AppointmentsPage() {
                         </SelectTrigger>
                         <SelectContent>
                             {paymentStatuses.map(status => (
-                                <SelectItem key={status} value={status!}>{status}</SelectItem>
+                                <SelectItem key={status} value={status}>{status}</SelectItem>
                             ))}
                         </SelectContent>
                     </Select>
@@ -327,3 +314,5 @@ export default function AppointmentsPage() {
     </Card>
   );
 }
+
+    

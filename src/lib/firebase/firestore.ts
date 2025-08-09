@@ -80,6 +80,7 @@ export interface Appointment {
   barberRating?: number;
   customerRating?: number;
   reviewText?: string;
+  paymentMethod?: 'Cash' | 'Wallet' | 'JazzCash' | 'EasyPaisa';
 }
 
 export interface WalletTransaction {
@@ -390,3 +391,5 @@ export async function createNotificationInFirestore(
     timestamp: serverTimestamp(),
   });
 }
+
+    

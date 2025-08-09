@@ -44,7 +44,11 @@ export function EnterPaymentDialog({ appointment, onSuccess }: EnterPaymentDialo
       return;
     }
 
-    const result = await recordPayment({ appointmentId: appointment.id, amountPaid: numericAmount });
+    const result = await recordPayment({ 
+        appointmentId: appointment.id, 
+        amountPaid: numericAmount,
+        paymentMethod: 'Cash'
+    });
 
     if (result.error) {
       toast({ variant: "destructive", title: "Error", description: result.error });
@@ -62,12 +66,12 @@ export function EnterPaymentDialog({ appointment, onSuccess }: EnterPaymentDialo
       <DialogTrigger asChild>
         <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
           <DollarSign className="mr-2 h-4 w-4" />
-          Enter Payment
+          Record Cash Payment
         </DropdownMenuItem>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Record Payment</DialogTitle>
+          <DialogTitle>Record Cash Payment</DialogTitle>
           <DialogDescription>
             Enter the amount paid by the customer for this service. Service price was PKR {appointment.price?.toLocaleString()}.
           </DialogDescription>
@@ -98,3 +102,5 @@ export function EnterPaymentDialog({ appointment, onSuccess }: EnterPaymentDialo
     </Dialog>
   );
 }
+
+    

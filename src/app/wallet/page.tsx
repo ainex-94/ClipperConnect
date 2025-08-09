@@ -95,29 +95,33 @@ export default function WalletPage() {
       header: 'Type',
       cell: ({ row }) => {
         const type = row.original.type;
-        let Icon, color;
+        let Icon, color, variant;
         
         switch(type) {
             case 'Top-up':
                 Icon = PlusCircle;
                 color = 'text-blue-500';
+                variant = 'secondary'
                 break;
             case 'Payment Sent':
                 Icon = ArrowRight;
                 color = 'text-red-500';
+                variant = 'destructive'
                 break;
             case 'Payment Received':
                 Icon = CheckCircle;
                 color = 'text-green-500';
+                variant = 'default'
                 break;
             default:
                 Icon = WalletIcon;
                 color = 'text-muted-foreground';
+                variant = 'outline'
         }
 
         return (
-          <Badge variant={type === 'Payment Sent' ? 'destructive' : 'secondary'} className="capitalize flex items-center gap-2">
-            <Icon className={`h-4 w-4 ${color}`} />
+          <Badge variant={variant} className="capitalize flex items-center gap-2">
+            <Icon className={`h-4 w-4 ${type !== 'Payment Sent' ? color : ''}`} />
             {type}
           </Badge>
         );
@@ -129,9 +133,8 @@ export default function WalletPage() {
       cell: ({ row }) => {
         const amount = row.original.amount;
         const type = row.original.type;
-        const prefix = type === 'Payment Sent' ? '-' : type === 'Payment Received' || type === 'Top-up' ? '+' : '';
-        const color = type === 'Payment Sent' ? 'text-red-500' : 'text-green-500';
-        return <span className={color}>{prefix}PKR {amount.toLocaleString()}</span>
+        const color = amount < 0 ? 'text-red-500' : 'text-green-500';
+        return <span className={color}>{`PKR ${amount.toLocaleString()}`}</span>
       },
     },
     {
@@ -219,3 +222,5 @@ export default function WalletPage() {
     </div>
   );
 }
+
+    
