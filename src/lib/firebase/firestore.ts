@@ -133,9 +133,8 @@ export async function getCustomers() {
 }
 
 export async function getBarbers() {
-    const q = query(collection(db, "users"), where("role", "==", "barber"), where("shopOwnerId", "==", null));
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => safeJsonParse({ id: doc.id, ...doc.data() }));
+    // Fetches all users with the 'barber' role, including shop owners and workers.
+    return getUsersWithRole('barber');
 }
 
 export async function getWorkersForBarber(shopOwnerId: string): Promise<UserProfile[]> {
