@@ -1,4 +1,3 @@
-
 // src/components/chat/chat-window.tsx
 "use client";
 
@@ -66,7 +65,6 @@ export function ChatWindow({ chat, isMobile, onBack }: ChatWindowProps) {
       // Mark messages as read when chat is opened
       markMessagesAsRead({ chatId: chat.id, currentUserId: user.uid });
       
-      const chatRef = doc(db, 'chats', chat.id);
       const messagesQuery = query(
         collection(db, "chats", chat.id, "messages"),
         orderBy("timestamp", "asc")
@@ -76,19 +74,9 @@ export function ChatWindow({ chat, isMobile, onBack }: ChatWindowProps) {
         const msgs = querySnapshot.docs.map(doc => ({...doc.data(), id: doc.id } as Message));
         setMessages(msgs);
       });
-      
-      // Separate listener for the chat document itself (for typing status)
-      const unsubscribeChat = onSnapshot(chatRef, (docSnap) => {
-        if (docSnap.exists()) {
-            const chatData = docSnap.data() as Chat;
-            // You can update the chat state here if needed, e.g., for typing indicators
-            // For now, we get the typing status directly from the `chat` prop which should be updated by the parent
-        }
-      });
 
       return () => {
         unsubscribeMessages();
-        unsubscribeChat();
         // Ensure typing status is set to false when component unmounts
         if (isTyping) {
             updateUserTypingStatus({ chatId: chat.id, userId: user.uid, isTyping: false });

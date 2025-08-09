@@ -116,10 +116,10 @@ export function PaymentOptionsDialog({ appointment, onSuccess }: PaymentOptionsD
                   variant="outline"
                   onClick={() => handlePaymentMethodSelect('JazzCash')}
                   disabled={!!isLoading}
-                  className="justify-start"
+                  className="justify-start gap-2"
               >
-                  {isLoading === 'JazzCash' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <JazzcashIcon className="mr-2 h-6 w-6" />}
-                  Pay with JazzCash
+                  {isLoading === 'JazzCash' ? <Loader2 className="h-5 w-5 animate-spin" /> : <JazzcashIcon className="h-6 w-6" />}
+                  <span className="flex-1 text-left">Pay with JazzCash</span>
               </Button>
 
               <Button
@@ -127,10 +127,10 @@ export function PaymentOptionsDialog({ appointment, onSuccess }: PaymentOptionsD
                   variant="outline"
                   onClick={() => handlePaymentMethodSelect('EasyPaisa')}
                   disabled={!!isLoading}
-                  className="justify-start"
+                  className="justify-start gap-2"
               >
-                  {isLoading === 'EasyPaisa' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <EasypaisaIcon className="mr-2 h-6 w-6" />}
-                  Pay with EasyPaisa
+                  {isLoading === 'EasyPaisa' ? <Loader2 className="h-5 w-5 animate-spin" /> : <EasypaisaIcon className="h-6 w-6" />}
+                  <span className="flex-1 text-left">Pay with EasyPaisa</span>
               </Button>
           </div>
         </DialogContent>

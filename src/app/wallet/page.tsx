@@ -23,6 +23,7 @@ export default function WalletPage() {
   const [loading, setLoading] = useState(true);
   const [topUpAmount, setTopUpAmount] = useState('');
   const [isToppingUp, setIsToppingUp] = useState(false);
+  const [showFullBalance, setShowFullBalance] = useState(false);
 
   const coins = user?.coins || 0;
   const coinValuePKR = (coins / 1000) * 5;
@@ -89,12 +90,17 @@ export default function WalletPage() {
     );
   }
 
-  const formatLargeNumber = (num: number) => {
-    if (num >= 100000) { // Greater than 5 figures
-        return (num / 1000).toFixed(0) + 'k';
+  const formatLargeNumber = (num: number): string => {
+    if (num >= 1000000) {
+      return (num / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+    }
+    if (num >= 1000) {
+      return (num / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
     }
     return num.toLocaleString();
   };
+
+  const walletBalance = user.walletBalance || 0;
 
   const columns: ColumnDef<WalletTransaction>[] = [
     {
@@ -163,7 +169,13 @@ export default function WalletPage() {
             <WalletIcon className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">PKR {formatLargeNumber(user.walletBalance || 0)}</div>
+             <button
+                onClick={() => setShowFullBalance(!showFullBalance)}
+                className="text-2xl font-bold text-left w-full hover:opacity-80 transition-opacity"
+                aria-label="Toggle full balance view"
+            >
+                PKR {showFullBalance ? walletBalance.toLocaleString() : formatLargeNumber(walletBalance)}
+            </button>
             <p className="text-xs text-muted-foreground">Your available funds</p>
           </CardContent>
         </Card>
