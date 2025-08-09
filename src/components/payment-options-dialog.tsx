@@ -124,5 +124,3 @@ export function PaymentOptionsDialog({ appointment, onSuccess }: PaymentOptionsD
     </Dialog>
   );
 }
-
-    
