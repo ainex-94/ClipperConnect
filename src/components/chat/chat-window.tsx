@@ -90,10 +90,20 @@ export function ChatWindow({ chat, isMobile, onBack }: ChatWindowProps) {
     e.preventDefault();
     if (newMessage.trim() === "" || !chat || !user || !otherParticipant) return;
     
-    await sendMessage(chat.id, user.uid, otherParticipant.id, newMessage);
-    await updateUserTypingStatus({ chatId: chat.id, userId: user.uid, isTyping: false });
-    setIsTyping(false);
+    // Optimistic UI update: clear the input field immediately
+    const messageToSend = newMessage;
     setNewMessage("");
+
+    // Perform the async operations in the background
+    try {
+        await sendMessage(chat.id, user.uid, otherParticipant.id, messageToSend);
+        await updateUserTypingStatus({ chatId: chat.id, userId: user.uid, isTyping: false });
+        setIsTyping(false);
+    } catch (error) {
+        console.error("Failed to send message:", error);
+        // Optionally, handle the error, e.g., show a toast and restore the input
+        setNewMessage(messageToSend); 
+    }
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
