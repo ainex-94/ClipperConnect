@@ -89,6 +89,13 @@ export default function WalletPage() {
     );
   }
 
+  const formatLargeNumber = (num: number) => {
+    if (num >= 100000) { // Greater than 5 figures
+        return (num / 1000).toFixed(0) + 'k';
+    }
+    return num.toLocaleString();
+  };
+
   const columns: ColumnDef<WalletTransaction>[] = [
     {
       accessorKey: 'type',
@@ -132,7 +139,6 @@ export default function WalletPage() {
       header: 'Amount',
       cell: ({ row }) => {
         const amount = row.original.amount;
-        const type = row.original.type;
         const color = amount < 0 ? 'text-red-500' : 'text-green-500';
         return <span className={color}>{`PKR ${amount.toLocaleString()}`}</span>
       },
@@ -157,7 +163,7 @@ export default function WalletPage() {
             <WalletIcon className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">PKR {(user.walletBalance || 0).toLocaleString()}</div>
+            <div className="text-2xl font-bold">PKR {formatLargeNumber(user.walletBalance || 0)}</div>
             <p className="text-xs text-muted-foreground">Your available funds</p>
           </CardContent>
         </Card>
@@ -222,5 +228,3 @@ export default function WalletPage() {
     </div>
   );
 }
-
-    
