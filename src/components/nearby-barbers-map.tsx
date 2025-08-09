@@ -82,13 +82,20 @@ function MapComponent({ barbers }: NearbyBarbersMapProps) {
             title: barber.displayName,
           });
           
+          const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${barber.latitude},${barber.longitude}`;
+          
           const infoWindowContent = `
-            <div class="flex items-center gap-3 p-1">
-                <img src="${barber.photoURL}" alt="${barber.displayName}" class="w-12 h-12 rounded-full object-cover" />
-                <div>
-                    <h3 class="font-bold text-base">${barber.displayName}</h3>
-                    <p class="text-sm text-muted-foreground">${barber.address || 'Address not available'}</p>
+            <div class="p-1 font-sans">
+                <div class="flex items-center gap-3">
+                    <img src="${barber.photoURL}" alt="${barber.displayName}" class="w-12 h-12 rounded-full object-cover" />
+                    <div>
+                        <h3 class="font-bold text-base">${barber.displayName}</h3>
+                        <p class="text-sm text-gray-500">${barber.address || 'Address not available'}</p>
+                    </div>
                 </div>
+                <a href="${mapsUrl}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline text-sm mt-2 inline-block">
+                    Get Directions
+                </a>
             </div>
           `;
 

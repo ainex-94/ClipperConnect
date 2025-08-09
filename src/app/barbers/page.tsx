@@ -133,9 +133,12 @@ export default function BarbersPage() {
                 const distance = currentLocation && barber.latitude && barber.longitude
                     ? getDistance(currentLocation.lat, currentLocation.lng, barber.latitude, barber.longitude)
                     : null;
+                const hasLocation = barber.latitude && barber.longitude;
+                const mapsUrl = hasLocation ? `https://www.google.com/maps/dir/?api=1&destination=${barber.latitude},${barber.longitude}` : '#';
+                
                 return (
-                  <Link key={barber.id} href={`/barbers/${barber.id}`} className="flex flex-col">
-                    <Card className="flex flex-col h-full hover:shadow-xl transition-shadow duration-300">
+                  <Card key={barber.id} className="flex flex-col h-full hover:shadow-xl transition-shadow duration-300">
+                    <Link href={`/barbers/${barber.id}`} className="flex flex-col flex-grow">
                       <CardHeader className="p-0">
                         <Carousel className="w-full">
                           <CarouselContent>
@@ -188,13 +191,20 @@ export default function BarbersPage() {
                             </div>
                           </div>
                         </CardContent>
-                        <CardFooter className="flex flex-col sm:flex-row gap-2 pt-4 p-0">
-                            <ViewScheduleDialog barber={barber} />
-                            {user && <StartChatButton otherUserId={barber.id} />}
-                        </CardFooter>
                       </div>
-                    </Card>
-                  </Link>
+                    </Link>
+                    <CardFooter className="flex flex-col sm:flex-row gap-2 pt-4 p-4">
+                        {hasLocation && (
+                           <Button asChild variant="outline" size="sm" className="w-full" onClick={(e) => e.stopPropagation()}>
+                                <Link href={mapsUrl} target="_blank" rel="noopener noreferrer">
+                                    <MapPin className="mr-2 h-4 w-4"/>
+                                    Directions
+                                </Link>
+                            </Button>
+                        )}
+                        {user && <StartChatButton otherUserId={barber.id} />}
+                    </CardFooter>
+                  </Card>
                 )
               })}
               {filteredBarbers.length === 0 && !loading && (

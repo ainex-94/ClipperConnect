@@ -15,11 +15,12 @@ import { Separator } from "@/components/ui/separator";
 import { ViewScheduleDialog } from "@/components/view-schedule-dialog";
 import { StartChatButton } from "@/components/start-chat-button";
 import { NewAppointmentDialog } from "@/components/new-appointment-dialog";
-import { Star, MessageSquare, Calendar, Loader2 } from "lucide-react";
+import { Star, MessageSquare, Calendar, Loader2, MapPin } from "lucide-react";
 import Image from "next/image";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { UserPresenceIndicator } from "@/components/user-presence-indicator";
+import Link from "next/link";
 
 export default function BarberProfilePage() {
     const { user } = useAuth();
@@ -71,6 +72,9 @@ export default function BarberProfilePage() {
     
     const images = [barber.photoURL, ...(barber.shopImageUrls || [])];
     const ratingValue = barber.rating || 0;
+    const hasLocation = barber.latitude && barber.longitude;
+    const mapsUrl = hasLocation ? `https://www.google.com/maps/dir/?api=1&destination=${barber.latitude},${barber.longitude}` : '#';
+
 
     return (
         <div className="container mx-auto py-8">
@@ -102,6 +106,14 @@ export default function BarberProfilePage() {
                         </CardContent>
                         <CardFooter className="flex flex-col gap-2">
                             {user && <NewAppointmentDialog />}
+                            {hasLocation && (
+                                <Button asChild variant="outline" className="w-full">
+                                    <Link href={mapsUrl} target="_blank" rel="noopener noreferrer">
+                                        <MapPin className="mr-2 h-4 w-4"/>
+                                        Get Directions
+                                    </Link>
+                                </Button>
+                            )}
                             <ViewScheduleDialog barber={barber} />
                              {user && <StartChatButton otherUserId={barber.id} />}
                         </CardFooter>
